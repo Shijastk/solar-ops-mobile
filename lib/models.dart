@@ -505,7 +505,7 @@ Map<String, dynamic> _map(dynamic value) =>
 
 List<dynamic> _list(dynamic value) => value is List ? value : const [];
 
-String? _string(dynamic value) => value == null ? null : value.toString();
+String? _string(dynamic value) => value?.toString();
 
 int _int(dynamic value) {
   if (value is int) return value;
