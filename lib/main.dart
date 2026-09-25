@@ -247,8 +247,8 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 22),
-              TextField(
-                decoration: const InputDecoration(
+              const TextField(
+                decoration: InputDecoration(
                   hintText: 'Search bills, products, vehicle...',
                   prefixIcon: Icon(Icons.search_rounded),
                   contentPadding:
@@ -483,18 +483,18 @@ class _WeeklyChart extends StatelessWidget {
         color: isDark ? const Color(0xFF1B1B1E) : const Color(0xFFF8F8F9),
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               _LegendDot(color: AppTheme.primary, label: 'Delivered'),
               SizedBox(width: 16),
               _LegendDot(color: Color(0xFFAFC8F4), label: 'Received'),
             ],
           ),
-          const SizedBox(height: 18),
-          const Expanded(
+          SizedBox(height: 18),
+          Expanded(
             child: CustomPaint(
               painter: _BarChartPainter(),
               child: SizedBox.expand(),
