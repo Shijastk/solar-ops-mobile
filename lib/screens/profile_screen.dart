@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: const Text(
                   'Dark mode',
-                  style: TextStyle(fontWeight: FontWeight.w750),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: const Text('Stored only for this running app session'),
                 value: isDark,
