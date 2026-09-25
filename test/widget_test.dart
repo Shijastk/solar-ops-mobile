@@ -1,10 +1,12 @@
 
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:solar_ops_mobile/api_client.dart';
+import 'package:solar_ops_mobile/app_ui.dart';
 import 'package:solar_ops_mobile/models.dart';
 
 void main() {
@@ -200,4 +202,42 @@ void main() {
     expect(session.expiresAt.year, 2026);
     api.dispose();
   });
+
+  testWidgets('stock adjustment dialog owns its controller lifecycle',
+      (tester) async {
+    double? result;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                result = await showDialog<double>(
+                  context: context,
+                  builder: (_) => const StockAdjustmentDialog(
+                    productName: 'Solar Panel',
+                    unit: 'NOS',
+                    currentQuantity: 42,
+                  ),
+                );
+              },
+              child: const Text('Open adjustment'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open adjustment'));
+    await tester.pumpAndSettle();
+    expect(find.text('Adjust Solar Panel'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(result, 42);
+  });
+
 }
