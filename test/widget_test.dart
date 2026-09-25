@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solar_ops_mobile/main.dart';
 
@@ -17,13 +16,10 @@ void main() {
   testWidgets('bottom navigation opens stock page', (tester) async {
     await tester.pumpWidget(const SolarOpsApp());
 
-    await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
+    await tester.tap(find.text('Stock'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Stock'), findsWidgets);
-    expect(
-      find.text('Opening stock and inventory ledger will appear here.'),
-      findsOneWidget,
-    );
+    expect(find.text('Opening stock and inventory ledger will appear here.'),
+        findsOneWidget);
   });
 }
