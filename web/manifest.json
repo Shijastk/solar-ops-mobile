@@ -1,0 +1,11 @@
+{
+  "name": "Solar Ops",
+  "short_name": "Solar Ops",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#635BDF",
+  "description": "Solar Ops mobile operations dashboard.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
