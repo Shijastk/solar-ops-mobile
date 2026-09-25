@@ -51,7 +51,7 @@ class DispatchScreen extends StatelessWidget {
                               child: Text(
                                 item.documentNumber ?? item.fileName,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w850,
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 16,
                                 ),
                               ),
