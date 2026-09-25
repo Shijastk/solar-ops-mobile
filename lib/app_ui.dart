@@ -371,9 +371,6 @@ class CompanySnapshot {
                 draft.parseStatus == 'needs_review');
       }).length;
 
-  double get stockQuantity =>
-      balances.fold(0.0, (sum, balance) => sum + balance.currentQuantity);
-
   factory CompanySnapshot.fromData(
     BootstrapData data,
     StockCompany company,
@@ -1339,49 +1336,12 @@ class _DispatchScreenState extends State<DispatchScreen> {
               body: 'Parsed bills with dispatch data will appear here.',
             )
           else
-            ...rows.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: SurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.local_shipping_outlined, color: appPurple),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(item.documentNumber ?? item.fileName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w900, fontSize: 16)),
-                        ),
-                        StatusPill(text: item.workflowStatus),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(item.companyName ?? 'Company not parsed',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 5),
-                    Text(
-                      [
-                        if (item.consigneeName != null) item.consigneeName!,
-                        if (item.destination != null) item.destination!,
-                      ].join(' · '),
-                      style: muted(context),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.pin_outlined, size: 18),
-                        const SizedBox(width: 6),
-                        Text(item.vehicleNumber ?? 'Vehicle not parsed'),
-                        const Spacer(),
-                        StatusPill(text: item.stockStatus),
-                      ],
-                    ),
-                  ],
-                ),
+            ...rows.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DispatchSummaryCard(item: item),
               ),
-            )),
+            ),
         ],
       ),
     );
@@ -1573,7 +1533,10 @@ class MoreScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
       children: [
-        const AppHeader(title: 'More', subtitle: 'Messages and settings'),
+        const AppHeader(
+          title: 'More',
+          subtitle: 'Companies, messages and settings',
+        ),
         const SizedBox(height: 18),
         MenuTile(
           icon: Icons.business_outlined,
