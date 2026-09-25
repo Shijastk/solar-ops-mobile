@@ -1542,6 +1542,17 @@ class MoreScreen extends StatelessWidget {
         const AppHeader(title: 'More', subtitle: 'Messages and settings'),
         const SizedBox(height: 18),
         MenuTile(
+          icon: Icons.business_outlined,
+          title: 'Companies',
+          subtitle: '${data?.stock.companies.length ?? 0} configured companies',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CompaniesScreen(controller: controller),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        MenuTile(
           icon: Icons.chat_bubble_outline_rounded,
           title: 'WhatsApp conversations',
           subtitle: '${data?.conversations.length ?? 0} conversations',
