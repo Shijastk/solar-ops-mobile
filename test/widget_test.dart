@@ -184,7 +184,7 @@ void main() {
     expect(snapshot.dispatches.length, 1);
     expect(snapshot.balances.length, 1);
     expect(snapshot.pendingReview, 1);
-    expect(snapshot.stockQuantity, 42);
+    expect(snapshot.balances.single.currentQuantity, 42);
 
     final payload =
         jsonDecode(jsonEncode(bootstrapJson)) as Map<String, dynamic>;
