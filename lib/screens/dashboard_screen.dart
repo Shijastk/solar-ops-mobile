@@ -29,7 +29,7 @@ class DashboardScreen extends StatelessWidget {
         children: [
           PageHeader(
             title: 'Solar Ops',
-            subtitle: 'Live operations · ' + formatDateTime(data.generatedAt),
+            subtitle: 'Live operations · ${formatDateTime(data.generatedAt)}',
             trailing: IconButton.filledTonal(
               tooltip: 'Refresh',
               onPressed: controller.loading ? null : controller.refresh,
