@@ -123,6 +123,9 @@ class Bill {
     required this.receivedAt,
     required this.senderName,
     required this.senderPhoneMasked,
+    required this.companyId,
+    required this.companyName,
+    required this.companyGstin,
     required this.draft,
   });
 
@@ -135,6 +138,9 @@ class Bill {
   final DateTime receivedAt;
   final String? senderName;
   final String senderPhoneMasked;
+  final String? companyId;
+  final String? companyName;
+  final String? companyGstin;
   final DocumentDraft? draft;
 
   factory Bill.fromJson(Map<String, dynamic> json) => Bill(
@@ -149,6 +155,9 @@ class Bill {
             DateTime.fromMillisecondsSinceEpoch(0),
         senderName: _string(json['senderName']),
         senderPhoneMasked: _string(json['senderPhoneMasked']) ?? '••••',
+        companyId: _string(json['companyId']),
+        companyName: _string(json['companyName']),
+        companyGstin: _string(json['companyGstin']),
         draft: json['draft'] is Map
             ? DocumentDraft.fromJson(_map(json['draft']))
             : null,
@@ -191,6 +200,7 @@ class DocumentDraft {
     required this.stockStatus,
     required this.stockError,
     required this.stockUpdatedAt,
+    required this.stockCompanyId,
     required this.items,
   });
 
@@ -228,6 +238,7 @@ class DocumentDraft {
   final String stockStatus;
   final String? stockError;
   final DateTime? stockUpdatedAt;
+  final String? stockCompanyId;
   final List<DocumentItem> items;
 
   bool get canApprove =>
@@ -271,6 +282,7 @@ class DocumentDraft {
         stockError: _string(json['stockError']),
         stockUpdatedAt:
             DateTime.tryParse(_string(json['stockUpdatedAt']) ?? ''),
+        stockCompanyId: _string(json['stockCompanyId']),
         items: _list(json['items'])
             .map((item) => DocumentItem.fromJson(_map(item)))
             .toList(),
@@ -316,7 +328,9 @@ class DispatchRecord {
     required this.fileName,
     required this.receivedAt,
     required this.documentNumber,
+    required this.companyId,
     required this.companyName,
+    required this.companyGstin,
     required this.destination,
     required this.consigneeName,
     required this.vehicleNumber,
@@ -328,7 +342,9 @@ class DispatchRecord {
   final String fileName;
   final DateTime receivedAt;
   final String? documentNumber;
+  final String? companyId;
   final String? companyName;
+  final String? companyGstin;
   final String? destination;
   final String? consigneeName;
   final String? vehicleNumber;
@@ -341,7 +357,9 @@ class DispatchRecord {
         receivedAt: DateTime.tryParse(_string(json['receivedAt']) ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0),
         documentNumber: _string(json['documentNumber']),
+        companyId: _string(json['companyId']),
         companyName: _string(json['companyName']),
+        companyGstin: _string(json['companyGstin']),
         destination: _string(json['destination']),
         consigneeName: _string(json['consigneeName']),
         vehicleNumber: _string(json['vehicleNumber']),
