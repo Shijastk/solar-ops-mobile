@@ -278,6 +278,46 @@ void main() {
   });
 
 
+  testWidgets('company dropdown does not overflow on narrow phones',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const company = StockCompany(
+      id: '44444444-4444-4444-8444-444444444444',
+      name:
+          'SAVITR SOLAR SOLUTIONS LIMITED KERALA DISTRIBUTION OPERATIONS',
+      gstin: '32AAAAA0000A1Z5',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(18),
+            child: CompanyFilterField(
+              companies: const [company],
+              selectedCompanyId: company.id,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String?>));
+    await tester.pumpAndSettle();
+
+    expect(find.text(company.name), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+
   testWidgets('WhatsApp conversation opens at the latest message',
       (tester) async {
     final payload =
