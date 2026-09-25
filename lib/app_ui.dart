@@ -311,6 +311,622 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
+
+class CompanySnapshot {
+  const CompanySnapshot({
+    required this.company,
+    required this.bills,
+    required this.dispatches,
+    required this.balances,
+  });
+
+  final StockCompany company;
+  final List<Bill> bills;
+  final List<DispatchRecord> dispatches;
+  final List<StockBalance> balances;
+
+  int get pendingReview => bills.where((bill) {
+        final draft = bill.draft;
+        return draft != null &&
+            (draft.workflowStatus == 'review_required' ||
+                draft.parseStatus == 'ready_for_review' ||
+                draft.parseStatus == 'needs_review');
+      }).length;
+
+  double get stockQuantity =>
+      balances.fold(0, (sum, balance) => sum + balance.currentQuantity);
+
+  factory CompanySnapshot.fromData(
+    BootstrapData data,
+    StockCompany company,
+  ) {
+    return CompanySnapshot(
+      company: company,
+      bills: data.bills.where((bill) => bill.companyId == company.id).toList(),
+      dispatches: data.dispatches
+          .where((dispatch) => dispatch.companyId == company.id)
+          .toList(),
+      balances: data.stock.balances
+          .where((balance) => balance.companyId == company.id)
+          .toList(),
+    );
+  }
+}
+
+class CompanyOverviewCard extends StatelessWidget {
+  const CompanyOverviewCard({
+    super.key,
+    required this.snapshot,
+    required this.onTap,
+  });
+
+  final CompanySnapshot snapshot;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: appPurple.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.business_outlined, color: appPurple),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      snapshot.company.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      snapshot.company.gstin ?? 'GSTIN unavailable',
+                      style: muted(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: CompanyMiniMetric(
+                  label: 'Bills',
+                  value: snapshot.bills.length.toString(),
+                ),
+              ),
+              Expanded(
+                child: CompanyMiniMetric(
+                  label: 'Pending',
+                  value: snapshot.pendingReview.toString(),
+                ),
+              ),
+              Expanded(
+                child: CompanyMiniMetric(
+                  label: 'Products',
+                  value: snapshot.balances.length.toString(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CompanyMiniMetric extends StatelessWidget {
+  const CompanyMiniMetric({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: muted(context)),
+      ],
+    );
+  }
+}
+
+class CompaniesScreen extends StatelessWidget {
+  const CompaniesScreen({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final data = controller.data;
+        if (data == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final unassigned =
+            data.bills.where((bill) => bill.companyId == null).toList();
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('Companies')),
+          body: RefreshIndicator(
+            onRefresh: controller.refresh,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 30),
+              children: [
+                const Text(
+                  'Company-wise operations',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.6,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Bills are assigned only from the canonical company mapping or an exact GSTIN match.',
+                  style: muted(context),
+                ),
+                const SizedBox(height: 18),
+                if (data.stock.companies.isEmpty)
+                  const EmptyState(
+                    icon: Icons.business_outlined,
+                    title: 'No companies configured',
+                    body: 'Add opening stock to configure a company.',
+                  )
+                else
+                  ...data.stock.companies.map(
+                    (company) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: CompanyOverviewCard(
+                        snapshot: CompanySnapshot.fromData(data, company),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CompanyDetailScreen(
+                              controller: controller,
+                              companyId: company.id,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (unassigned.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SurfaceCard(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UnassignedBillsScreen(
+                          controller: controller,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.help_outline_rounded,
+                            color: Colors.orange),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${unassigned.length} unassigned bill${unassigned.length == 1 ? '' : 's'}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'No company was guessed. Review these bills separately.',
+                                style: muted(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class CompanyDetailScreen extends StatelessWidget {
+  const CompanyDetailScreen({
+    super.key,
+    required this.controller,
+    required this.companyId,
+  });
+
+  final AppController controller;
+  final String companyId;
+
+  StockCompany? _companyFrom(BootstrapData data) {
+    for (final company in data.stock.companies) {
+      if (company.id == companyId) return company;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final data = controller.data;
+        if (data == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final company = _companyFrom(data);
+        if (company == null) {
+          return const Scaffold(
+            body: Center(child: Text('Company is no longer available.')),
+          );
+        }
+
+        final snapshot = CompanySnapshot.fromData(data, company);
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('Company')),
+          body: RefreshIndicator(
+            onRefresh: controller.refresh,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
+              children: [
+                SurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.business_outlined,
+                        color: appPurple,
+                        size: 30,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        company.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'GSTIN ${company.gstin ?? '—'}',
+                        style: muted(context),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Grouped by canonical company ID / exact GSTIN. Display-name guessing is not used.',
+                        style: muted(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = (constraints.maxWidth - 10) / 2;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        MetricCard(
+                          width: width,
+                          icon: Icons.receipt_long_outlined,
+                          value: snapshot.bills.length.toString(),
+                          label: 'Bills',
+                        ),
+                        MetricCard(
+                          width: width,
+                          icon: Icons.fact_check_outlined,
+                          value: snapshot.pendingReview.toString(),
+                          label: 'Pending review',
+                        ),
+                        MetricCard(
+                          width: width,
+                          icon: Icons.inventory_2_outlined,
+                          value: snapshot.balances.length.toString(),
+                          label: 'Stock products',
+                        ),
+                        MetricCard(
+                          width: width,
+                          icon: Icons.local_shipping_outlined,
+                          value: snapshot.dispatches.length.toString(),
+                          label: 'Dispatches',
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 26),
+                const SectionTitle(title: 'Current stock'),
+                const SizedBox(height: 10),
+                if (snapshot.balances.isEmpty)
+                  const EmptyState(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No stock products',
+                    body: 'No configured stock products for this company.',
+                  )
+                else
+                  ...snapshot.balances.map(
+                    (balance) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: SurfaceCard(
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.inventory_2_outlined,
+                              color: appPurple,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    balance.productName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    balance.hsnSac == null
+                                        ? balance.unit
+                                        : '${balance.unit} · HSN ${balance.hsnSac}',
+                                    style: muted(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '${qty(balance.currentQuantity)} ${balance.unit}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                const SectionTitle(title: 'Bills'),
+                const SizedBox(height: 10),
+                if (snapshot.bills.isEmpty)
+                  const EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No assigned bills',
+                    body: 'No bill is currently mapped to this company.',
+                  )
+                else
+                  ...snapshot.bills.map(
+                    (bill) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: BillTile(
+                        bill: bill,
+                        onTap: () => openBill(context, controller, bill.id),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                const SectionTitle(title: 'Dispatch'),
+                const SizedBox(height: 10),
+                if (snapshot.dispatches.isEmpty)
+                  const EmptyState(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'No dispatch records',
+                    body: 'No parsed dispatch is assigned to this company.',
+                  )
+                else
+                  ...snapshot.dispatches.map(
+                    (dispatch) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: DispatchSummaryCard(item: dispatch),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class UnassignedBillsScreen extends StatelessWidget {
+  const UnassignedBillsScreen({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final bills = controller.data?.bills
+                .where((bill) => bill.companyId == null)
+                .toList() ??
+            const <Bill>[];
+
+        return Scaffold(
+          appBar: AppBar(title: const Text('Unassigned bills')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
+            children: [
+              const ErrorBox(
+                message:
+                    'These bills are not assigned because no canonical company ID or exact GSTIN match is available.',
+              ),
+              const SizedBox(height: 14),
+              if (bills.isEmpty)
+                const EmptyState(
+                  icon: Icons.check_circle_outline,
+                  title: 'Nothing unassigned',
+                  body: 'All loaded bills have a canonical company.',
+                )
+              else
+                ...bills.map(
+                  (bill) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: BillTile(
+                      bill: bill,
+                      onTap: () => openBill(context, controller, bill.id),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class CompanyFilterField extends StatelessWidget {
+  const CompanyFilterField({
+    super.key,
+    required this.companies,
+    required this.selectedCompanyId,
+    required this.onChanged,
+  });
+
+  final List<StockCompany> companies;
+  final String? selectedCompanyId;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String?>(
+      initialValue: selectedCompanyId,
+      decoration: const InputDecoration(
+        labelText: 'Company',
+        prefixIcon: Icon(Icons.business_outlined),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('All companies'),
+        ),
+        ...companies.map(
+          (company) => DropdownMenuItem<String?>(
+            value: company.id,
+            child: Text(
+              company.name,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class DispatchSummaryCard extends StatelessWidget {
+  const DispatchSummaryCard({super.key, required this.item});
+
+  final DispatchRecord item;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping_outlined, color: appPurple),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  item.documentNumber ?? item.fileName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              StatusPill(text: item.workflowStatus),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            item.companyName ?? 'Company not assigned',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            [
+              if (item.consigneeName != null) item.consigneeName!,
+              if (item.destination != null) item.destination!,
+            ].join(' · '),
+            style: muted(context),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.pin_outlined, size: 18),
+              const SizedBox(width: 6),
+              Text(item.vehicleNumber ?? 'Vehicle not parsed'),
+              const Spacer(),
+              StatusPill(text: item.stockStatus),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class BillsScreen extends StatefulWidget {
   const BillsScreen({super.key, required this.controller});
   final AppController controller;
