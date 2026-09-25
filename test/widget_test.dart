@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solar_ops_mobile/main.dart';
 
@@ -10,6 +11,12 @@ void main() {
     expect(find.text('Pending review'), findsOneWidget);
     expect(find.text('Dispatched'), findsWidgets);
     expect(find.text('Stock alerts'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Recent bills'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Recent bills'), findsOneWidget);
   });
 
