@@ -365,7 +365,7 @@ class _OpeningStockSheetState extends State<_OpeningStockSheet> {
               Text(
                 'Add opening stock',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w850,
+                      fontWeight: FontWeight.w800,
                     ),
               ),
               const SizedBox(height: 6),
