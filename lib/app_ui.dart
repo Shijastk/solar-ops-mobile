@@ -881,6 +881,7 @@ class CompanyFilterField extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String?>(
       initialValue: selectedCompanyId,
+      isExpanded: true,
       decoration: const InputDecoration(
         labelText: 'Company',
         prefixIcon: Icon(Icons.business_outlined),
@@ -888,13 +889,19 @@ class CompanyFilterField extends StatelessWidget {
       items: [
         const DropdownMenuItem<String?>(
           value: null,
-          child: Text('All companies'),
+          child: Text(
+            'All companies',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         ...companies.map(
           (company) => DropdownMenuItem<String?>(
             value: company.id,
             child: Text(
               company.name,
+              maxLines: 1,
+              softWrap: false,
               overflow: TextOverflow.ellipsis,
             ),
           ),
