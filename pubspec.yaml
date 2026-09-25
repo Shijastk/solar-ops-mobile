@@ -1,7 +1,7 @@
 name: solar_ops_mobile
 description: Mobile operations client for Solar Ops.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -10,6 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  flutter_secure_storage: ^9.2.4
+  http: ^1.5.0
+  intl: ^0.20.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
