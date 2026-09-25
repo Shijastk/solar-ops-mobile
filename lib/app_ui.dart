@@ -275,6 +275,44 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 12),
           DailyChart(items: dashboard.dailyBills),
           const SizedBox(height: 28),
+          Row(
+            children: [
+              const Expanded(child: SectionTitle(title: 'Companies')),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CompaniesScreen(controller: controller),
+                  ),
+                ),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (live.stock.companies.isEmpty)
+            const EmptyState(
+              icon: Icons.business_outlined,
+              title: 'No companies configured',
+              body: 'Companies appear after opening stock is configured.',
+            )
+          else
+            ...live.stock.companies.take(3).map(
+                  (company) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: CompanyOverviewCard(
+                      snapshot: CompanySnapshot.fromData(live, company),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CompanyDetailScreen(
+                            controller: controller,
+                            companyId: company.id,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+          const SizedBox(height: 18),
           const SectionTitle(title: 'Recent bills'),
           const SizedBox(height: 10),
           if (live.bills.isEmpty)
