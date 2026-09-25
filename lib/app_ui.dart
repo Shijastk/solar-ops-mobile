@@ -975,12 +975,18 @@ class BillsScreen extends StatefulWidget {
 
 class _BillsScreenState extends State<BillsScreen> {
   String query = '';
+  String? selectedCompanyId;
 
   @override
   Widget build(BuildContext context) {
-    final source = widget.controller.data?.bills ?? const <Bill>[];
+    final data = widget.controller.data;
+    final source = data?.bills ?? const <Bill>[];
+    final companies = data?.stock.companies ?? const <StockCompany>[];
     final q = query.trim().toLowerCase();
     final bills = source.where((bill) {
+      if (selectedCompanyId != null && bill.companyId != selectedCompanyId) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return [
         bill.fileName,
@@ -1009,6 +1015,12 @@ class _BillsScreenState extends State<BillsScreen> {
               hintText: 'Search company, bill, vehicle...',
               prefixIcon: Icon(Icons.search_rounded),
             ),
+          ),
+          const SizedBox(height: 10),
+          CompanyFilterField(
+            companies: companies,
+            selectedCompanyId: selectedCompanyId,
+            onChanged: (value) => setState(() => selectedCompanyId = value),
           ),
           const SizedBox(height: 16),
           if (bills.isEmpty)
@@ -1273,12 +1285,18 @@ class DispatchScreen extends StatefulWidget {
 
 class _DispatchScreenState extends State<DispatchScreen> {
   String query = '';
+  String? selectedCompanyId;
 
   @override
   Widget build(BuildContext context) {
-    final source = widget.controller.data?.dispatches ?? const <DispatchRecord>[];
+    final data = widget.controller.data;
+    final source = data?.dispatches ?? const <DispatchRecord>[];
+    final companies = data?.stock.companies ?? const <StockCompany>[];
     final q = query.toLowerCase().trim();
     final rows = source.where((item) {
+      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return [
         item.documentNumber,
@@ -1306,6 +1324,12 @@ class _DispatchScreenState extends State<DispatchScreen> {
               hintText: 'Search vehicle, company, destination...',
               prefixIcon: Icon(Icons.search_rounded),
             ),
+          ),
+          const SizedBox(height: 10),
+          CompanyFilterField(
+            companies: companies,
+            selectedCompanyId: selectedCompanyId,
+            onChanged: (value) => setState(() => selectedCompanyId = value),
           ),
           const SizedBox(height: 16),
           if (rows.isEmpty)
@@ -1374,6 +1398,7 @@ class StockScreen extends StatefulWidget {
 
 class _StockScreenState extends State<StockScreen> {
   String query = '';
+  String? selectedCompanyId;
 
   Future<void> adjust(StockBalance balance) async {
     final target = await showDialog<double>(
@@ -1437,6 +1462,9 @@ class _StockScreenState extends State<StockScreen> {
         const StockData(companies: [], balances: []);
     final q = query.toLowerCase().trim();
     final balances = stock.balances.where((item) {
+      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return [
         item.companyName,
@@ -1469,6 +1497,12 @@ class _StockScreenState extends State<StockScreen> {
               hintText: 'Search product or company...',
               prefixIcon: Icon(Icons.search_rounded),
             ),
+          ),
+          const SizedBox(height: 10),
+          CompanyFilterField(
+            companies: stock.companies,
+            selectedCompanyId: selectedCompanyId,
+            onChanged: (value) => setState(() => selectedCompanyId = value),
           ),
           const SizedBox(height: 16),
           if (balances.isEmpty)
