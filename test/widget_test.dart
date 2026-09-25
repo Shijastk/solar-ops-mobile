@@ -224,6 +224,11 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.scrollUntilVisible(
+      find.text('Recent bills'),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Recent bills'), findsOneWidget);
     expect(find.text('INV-REAL-001'), findsOneWidget);
   });
@@ -263,7 +268,7 @@ void main() {
     await tester.pumpWidget(SolarOpsApp(controller: controller));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Dispatch'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Dispatch'));
     await tester.pumpAndSettle();
 
     expect(find.text('No parsed dispatch data'), findsOneWidget);
