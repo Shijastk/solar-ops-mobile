@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solar_ops_mobile/api.dart';
 import 'package:solar_ops_mobile/app_controller.dart';
@@ -218,6 +219,11 @@ void main() {
     expect(find.text('Bills today'), findsOneWidget);
     expect(find.text('Needs review'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Recent bills'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Recent bills'), findsOneWidget);
     expect(find.text('INV-REAL-001'), findsOneWidget);
   });
@@ -229,21 +235,21 @@ void main() {
     await tester.pumpWidget(SolarOpsApp(controller: controller));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Bills'));
+    await tester.tap(find.text('Bills').last);
     await tester.pumpAndSettle();
     expect(find.text('INV-REAL-001'), findsOneWidget);
 
-    await tester.tap(find.text('Dispatch'));
+    await tester.tap(find.text('Dispatch').last);
     await tester.pumpAndSettle();
     expect(find.text('KL 11 AB 1234'), findsOneWidget);
     expect(find.text('Kozhikode'), findsOneWidget);
 
-    await tester.tap(find.text('Stock'));
+    await tester.tap(find.text('Stock').last);
     await tester.pumpAndSettle();
     expect(find.text('Solar Panel 560W'), findsOneWidget);
     expect(find.text('134'), findsOneWidget);
 
-    await tester.tap(find.text('Profile'));
+    await tester.tap(find.text('Profile').last);
     await tester.pumpAndSettle();
     expect(find.text('Backend connection'), findsOneWidget);
     expect(find.text('Healthy'), findsOneWidget);
