@@ -43,6 +43,9 @@ void main() {
         'receivedAt': '2026-09-25T10:00:00.000Z',
         'senderName': 'Supplier',
         'senderPhoneMasked': '•••• 3210',
+        'companyId': '44444444-4444-4444-8444-444444444444',
+        'companyName': 'Supplier Pvt Ltd',
+        'companyGstin': '32AAAAA0000A1Z5',
         'draft': {
           'id': '22222222-2222-4222-8222-222222222222',
           'parseStatus': 'ready_for_review',
@@ -78,6 +81,7 @@ void main() {
           'stockStatus': 'pending',
           'stockError': null,
           'stockUpdatedAt': null,
+          'stockCompanyId': '44444444-4444-4444-8444-444444444444',
           'items': [
             {
               'id': '33333333-3333-4333-8333-333333333333',
@@ -99,7 +103,9 @@ void main() {
         'fileName': 'invoice.pdf',
         'receivedAt': '2026-09-25T10:00:00.000Z',
         'documentNumber': 'INV-42',
+        'companyId': '44444444-4444-4444-8444-444444444444',
         'companyName': 'Supplier Pvt Ltd',
+        'companyGstin': '32AAAAA0000A1Z5',
         'destination': 'Kozhikode',
         'consigneeName': 'Godown',
         'vehicleNumber': 'KL11AA1234',
@@ -160,10 +166,40 @@ void main() {
     expect(data.runtime.healthy, isTrue);
     expect(data.dashboard.billsToday, 2);
     expect(data.bills.single.draft?.supplierName, 'Supplier Pvt Ltd');
+    expect(data.bills.single.companyId,
+        '44444444-4444-4444-8444-444444444444');
     expect(data.bills.single.draft?.items.single.quantity, 10);
     expect(data.stock.balances.single.currentQuantity, 42);
     expect(data.conversations.single.canReply, isTrue);
     expect(data.dispatches.single.vehicleNumber, 'KL11AA1234');
+  });
+
+
+  test('company snapshot uses canonical company IDs and does not name-guess', () {
+    final data = BootstrapData.fromJson(bootstrapJson);
+    final company = data.stock.companies.single;
+    final snapshot = CompanySnapshot.fromData(data, company);
+
+    expect(snapshot.bills.length, 1);
+    expect(snapshot.dispatches.length, 1);
+    expect(snapshot.balances.length, 1);
+    expect(snapshot.pendingReview, 1);
+    expect(snapshot.stockQuantity, 42);
+
+    final payload =
+        jsonDecode(jsonEncode(bootstrapJson)) as Map<String, dynamic>;
+    final bills = payload['bills'] as List<dynamic>;
+    final bill = Map<String, dynamic>.from(bills.single as Map);
+    bill['companyId'] = null;
+    bill['companyName'] = null;
+    bill['companyGstin'] = null;
+    bills[0] = bill;
+
+    final unassignedData = BootstrapData.fromJson(payload);
+    final unassignedSnapshot =
+        CompanySnapshot.fromData(unassignedData, unassignedData.stock.companies.single);
+
+    expect(unassignedSnapshot.bills, isEmpty);
   });
 
   test('API client sends bearer token and parses bootstrap', () async {
