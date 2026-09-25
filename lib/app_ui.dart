@@ -1303,7 +1303,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: companyId,
+              initialValue: companyId,
               decoration: const InputDecoration(labelText: 'Existing company'),
               items: [
                 const DropdownMenuItem<String?>(
@@ -1332,7 +1332,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: unit,
+                    initialValue: unit,
                     decoration: const InputDecoration(labelText: 'Unit'),
                     items: const ['NOS', 'PCS', 'SET', 'BOX']
                         .map((item) =>
