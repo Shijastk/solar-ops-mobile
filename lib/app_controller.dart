@@ -162,7 +162,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<String> addOpeningStock({
+  Future<Map<String, dynamic>> addOpeningStock({
     String? companyId,
     String? companyName,
     String? companyGstin,
@@ -170,6 +170,8 @@ class AppController extends ChangeNotifier {
     required String unit,
     String? hsnSac,
     required double quantity,
+    bool allowSimilarCompany = false,
+    bool allowSimilarProduct = false,
   }) async {
     return _runMutation(() async {
       final result = await _api.addOpeningStock(
@@ -182,6 +184,8 @@ class AppController extends ChangeNotifier {
           'unit': unit,
           'hsnSac': hsnSac,
           'quantity': quantity,
+          'allowSimilarCompany': allowSimilarCompany,
+          'allowSimilarProduct': allowSimilarProduct,
         },
       );
 
@@ -189,7 +193,7 @@ class AppController extends ChangeNotifier {
       if (status == 'opening_created' || status == 'opening_exists') {
         await _refreshInternal();
       }
-      return status;
+      return result;
     });
   }
 
