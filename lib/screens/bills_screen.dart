@@ -443,7 +443,7 @@ class _DraftDetails extends StatelessWidget {
               'Missing: ' + draft.missingFields.join(', '),
               style: const TextStyle(
                 color: Color(0xFFC47A00),
-                fontWeight: FontWeight.w650,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -453,7 +453,7 @@ class _DraftDetails extends StatelessWidget {
               draft.parseError!,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.error,
-                fontWeight: FontWeight.w650,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
