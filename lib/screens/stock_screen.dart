@@ -150,10 +150,10 @@ class StockScreen extends StatelessWidget {
                             spacing: 7,
                             runSpacing: 7,
                             children: [
-                              StatusPill(status: 'current'),
+                              const StatusPill(status: 'current'),
                               if (balance.hsnSac != null)
                                 StatusPill(
-                                  status: 'HSN ' + balance.hsnSac!,
+                                  status: 'HSN ${balance.hsnSac!}',
                                 ),
                             ],
                           ),
@@ -162,7 +162,7 @@ class StockScreen extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'GSTIN ' + balance.companyGstin,
+                                  'GSTIN ${balance.companyGstin}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -322,7 +322,7 @@ class _OpeningStockSheetState extends State<_OpeningStockSheet> {
         }
 
         setState(() {
-          _error = 'Opening stock was not saved: ' + statusLabel(status) + '.';
+          _error = 'Opening stock was not saved: ${statusLabel(status)}.';
         });
         break;
       }
@@ -377,7 +377,7 @@ class _OpeningStockSheetState extends State<_OpeningStockSheet> {
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
-                value: _companyId,
+                initialValue: _companyId,
                 decoration: const InputDecoration(
                   labelText: 'Existing company',
                 ),
@@ -386,7 +386,7 @@ class _OpeningStockSheetState extends State<_OpeningStockSheet> {
                       (company) => DropdownMenuItem(
                         value: company.id,
                         child: Text(
-                          company.name + ' · ' + company.gstin,
+                          '${company.name} · ${company.gstin}',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -442,7 +442,7 @@ class _OpeningStockSheetState extends State<_OpeningStockSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _unit,
+                initialValue: _unit,
                 decoration: const InputDecoration(labelText: 'Unit'),
                 items: const ['NOS', 'PCS', 'SET', 'BOX']
                     .map(
@@ -549,7 +549,7 @@ class _AdjustStockSheetState extends State<_AdjustStockSheet> {
         'adjusted' => 'Stock adjusted with an audit ledger entry.',
         'already_adjusted' => 'This adjustment was already applied.',
         'no_change' => 'Stock already matches that quantity.',
-        _ => 'Adjustment result: ' + statusLabel(status),
+        _ => 'Adjustment result: ${statusLabel(status)}',
       };
       Navigator.pop(context, message);
     } on ApiException catch (error) {
@@ -592,9 +592,7 @@ class _AdjustStockSheetState extends State<_AdjustStockSheet> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Target physical quantity (' +
-                    widget.balance.unit +
-                    ')',
+                labelText: 'Target physical quantity (${widget.balance.unit})',
               ),
               validator: (value) {
                 final parsed = double.tryParse((value ?? '').trim());
