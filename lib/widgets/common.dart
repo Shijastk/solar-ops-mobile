@@ -11,27 +11,19 @@ String formatQuantity(num value) {
 
 String formatMoney(double? value) {
   if (value == null) return '—';
-  return '₹' + value.toStringAsFixed(2);
+  return '₹${value.toStringAsFixed(2)}';
 }
 
 String formatDateTime(DateTime value) {
   final local = value.toLocal();
   String two(int v) => v.toString().padLeft(2, '0');
-  return two(local.day) +
-      '/' +
-      two(local.month) +
-      '/' +
-      local.year.toString() +
-      ' · ' +
-      two(local.hour) +
-      ':' +
-      two(local.minute);
+  return '${two(local.day)}/${two(local.month)}/${local.year} · ${two(local.hour)}:${two(local.minute)}';
 }
 
 String formatDate(DateTime value) {
   final local = value.toLocal();
   String two(int v) => v.toString().padLeft(2, '0');
-  return two(local.day) + '/' + two(local.month) + '/' + local.year.toString();
+  return '${two(local.day)}/${two(local.month)}/${local.year}';
 }
 
 String statusLabel(String value) => value
