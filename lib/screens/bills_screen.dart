@@ -440,7 +440,7 @@ class _DraftDetails extends StatelessWidget {
           if (draft.missingFields.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Missing: ' + draft.missingFields.join(', '),
+              'Missing: ${draft.missingFields.join(', ')}',
               style: const TextStyle(
                 color: Color(0xFFC47A00),
                 fontWeight: FontWeight.w600,
@@ -495,7 +495,7 @@ class _ItemsCard extends StatelessWidget {
                         ),
                         if (item.hsnSac != null)
                           Text(
-                            'HSN ' + item.hsnSac!,
+                            'HSN ${item.hsnSac!}',
                             style:
                                 Theme.of(context).textTheme.bodySmall,
                           ),
@@ -509,8 +509,7 @@ class _ItemsCard extends StatelessWidget {
                       Text(
                         item.quantity == null
                             ? '—'
-                            : formatQuantity(item.quantity!) +
-                                (item.unit == null ? '' : ' ' + item.unit!),
+                            : '${formatQuantity(item.quantity!)}${item.unit == null ? '' : ' ${item.unit!}'}',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
