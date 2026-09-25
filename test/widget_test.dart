@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:solar_ops_mobile/api_client.dart';
+import 'package:solar_ops_mobile/app_controller.dart';
 import 'package:solar_ops_mobile/app_ui.dart';
 import 'package:solar_ops_mobile/models.dart';
 
@@ -238,6 +239,52 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(result, 42);
+  });
+
+
+  testWidgets('WhatsApp conversation opens at the latest message',
+      (tester) async {
+    final payload =
+        jsonDecode(jsonEncode(bootstrapJson)) as Map<String, dynamic>;
+    final conversations = payload['conversations'] as List<dynamic>;
+    final conversation =
+        Map<String, dynamic>.from(conversations.single as Map);
+    conversation['timeline'] = List.generate(30, (index) {
+      final time = DateTime.utc(2026, 9, 25, 10)
+          .add(Duration(minutes: index))
+          .toIso8601String();
+      return {
+        'type': 'inbound',
+        'time': time,
+        'id': 'message-$index',
+        'messageType': 'text',
+        'textBody': 'message $index',
+        'fileName': null,
+        'mimeType': null,
+        'mediaSizeBytes': null,
+        'storageAvailable': false,
+        'processingStatus': 'stored',
+      };
+    });
+    conversation['latestReceivedAt'] = '2026-09-25T10:29:00.000Z';
+    conversations[0] = conversation;
+
+    final controller = AppController();
+    controller.data = BootstrapData.fromJson(payload);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConversationScreen(
+          controller: controller,
+          conversationKey: 'abc',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('message 29'), findsOneWidget);
+    expect(find.text('message 0'), findsNothing);
   });
 
 }
