@@ -372,7 +372,7 @@ class CompanySnapshot {
       }).length;
 
   double get stockQuantity =>
-      balances.fold(0, (sum, balance) => sum + balance.currentQuantity);
+      balances.fold(0.0, (sum, balance) => sum + balance.currentQuantity);
 
   factory CompanySnapshot.fromData(
     BootstrapData data,
