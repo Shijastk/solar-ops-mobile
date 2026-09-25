@@ -1096,10 +1096,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
             children: [
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
                   itemCount: item.timeline.length,
                   itemBuilder: (context, index) {
-                    final event = item.timeline[index];
+                    final event =
+                        item.timeline[item.timeline.length - 1 - index];
                     return Align(
                       alignment: event.inbound
                           ? Alignment.centerLeft
