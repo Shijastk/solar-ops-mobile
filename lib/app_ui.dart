@@ -722,32 +722,14 @@ class _StockScreenState extends State<StockScreen> {
   String query = '';
 
   Future<void> adjust(StockBalance balance) async {
-    final field = TextEditingController(text: qty(balance.currentQuantity));
     final target = await showDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Adjust ${balance.productName}'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-              labelText: 'Current physical quantity (${balance.unit})'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(field.text.trim());
-              if (value != null && value >= 0) Navigator.pop(context, value);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => StockAdjustmentDialog(
+        productName: balance.productName,
+        unit: balance.unit,
+        currentQuantity: balance.currentQuantity,
       ),
     );
-    field.dispose();
     if (target == null || !mounted) return;
 
     final message = await widget.controller.runMutation(
@@ -1210,6 +1192,72 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class StockAdjustmentDialog extends StatefulWidget {
+  const StockAdjustmentDialog({
+    super.key,
+    required this.productName,
+    required this.unit,
+    required this.currentQuantity,
+  });
+
+  final String productName;
+  final String unit;
+  final double currentQuantity;
+
+  @override
+  State<StockAdjustmentDialog> createState() => _StockAdjustmentDialogState();
+}
+
+class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
+  late final TextEditingController quantityController;
+
+  @override
+  void initState() {
+    super.initState();
+    quantityController =
+        TextEditingController(text: qty(widget.currentQuantity));
+  }
+
+  @override
+  void dispose() {
+    quantityController.dispose();
+    super.dispose();
+  }
+
+  void submit() {
+    final value = double.tryParse(quantityController.text.trim());
+    if (value == null || value < 0) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Adjust ${widget.productName}'),
+      content: TextField(
+        controller: quantityController,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => submit(),
+        decoration: InputDecoration(
+          labelText: 'Current physical quantity (${widget.unit})',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: submit,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
