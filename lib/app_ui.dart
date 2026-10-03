@@ -1001,37 +1001,6 @@ class _BillsScreenState extends State<BillsScreen> {
         bill.draft?.destination,
       ].whereType<String>().any((value) => value.toLowerCase().contains(q));
     }).toList();
-    final history = stock.history.where((item) {
-      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      return [
-        item.companyName,
-        item.productName,
-        item.documentNumber,
-      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
-    }).toList();
-
-    String movementTitle(StockMovement item) {
-      switch (item.movementType) {
-        case 'opening':
-          return 'Opening stock';
-        case 'stock_in':
-          return 'Stock in';
-        case 'stock_out':
-          return 'Outgoing';
-        case 'correction':
-          return 'Bill correction';
-        case 'reversal':
-          return 'Bill reversal';
-        case 'adjustment':
-          return 'Physical adjustment';
-        default:
-          return item.movementType.replaceAll('_', ' ');
-      }
-    }
-
     return RefreshIndicator(
       onRefresh: widget.controller.refresh,
       child: ListView(
@@ -1470,6 +1439,36 @@ class _StockScreenState extends State<StockScreen> {
         item.companyGstin,
       ].whereType<String>().any((value) => value.toLowerCase().contains(q));
     }).toList();
+    final history = stock.history.where((item) {
+      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      return [
+        item.companyName,
+        item.productName,
+        item.documentNumber,
+      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
+    }).toList();
+
+    String movementTitle(StockMovement item) {
+      switch (item.movementType) {
+        case 'opening':
+          return 'Opening stock';
+        case 'stock_in':
+          return 'Stock in';
+        case 'stock_out':
+          return 'Outgoing';
+        case 'correction':
+          return 'Bill correction';
+        case 'reversal':
+          return 'Bill reversal';
+        case 'adjustment':
+          return 'Physical adjustment';
+        default:
+          return item.movementType.replaceAll('_', ' ');
+      }
+    }
 
     return RefreshIndicator(
       onRefresh: widget.controller.refresh,
