@@ -369,10 +369,15 @@ class DispatchRecord {
 }
 
 class StockData {
-  const StockData({required this.companies, required this.balances});
+  const StockData({
+    required this.companies,
+    required this.balances,
+    this.history = const [],
+  });
 
   final List<StockCompany> companies;
   final List<StockBalance> balances;
+  final List<StockMovement> history;
 
   factory StockData.fromJson(Map<String, dynamic> json) => StockData(
         companies: _list(json['companies'])
@@ -380,6 +385,9 @@ class StockData {
             .toList(),
         balances: _list(json['balances'])
             .map((item) => StockBalance.fromJson(_map(item)))
+            .toList(),
+        history: _list(json['history'])
+            .map((item) => StockMovement.fromJson(_map(item)))
             .toList(),
       );
 }
@@ -428,6 +436,61 @@ class StockBalance {
         unit: _string(json['unit']) ?? '',
         hsnSac: _string(json['hsnSac']),
         currentQuantity: _double(json['currentQuantity']),
+      );
+}
+
+class StockMovement {
+  const StockMovement({
+    required this.id,
+    required this.productId,
+    required this.companyId,
+    required this.companyName,
+    required this.companyGstin,
+    required this.productName,
+    required this.unit,
+    required this.hsnSac,
+    required this.movementType,
+    required this.quantityDelta,
+    required this.createdAt,
+    required this.draftId,
+    required this.documentNumber,
+    required this.documentDate,
+    required this.balanceAfter,
+  });
+
+  final String id;
+  final String productId;
+  final String companyId;
+  final String companyName;
+  final String? companyGstin;
+  final String productName;
+  final String unit;
+  final String? hsnSac;
+  final String movementType;
+  final double quantityDelta;
+  final DateTime createdAt;
+  final String? draftId;
+  final String? documentNumber;
+  final String? documentDate;
+  final double balanceAfter;
+
+  factory StockMovement.fromJson(Map<String, dynamic> json) => StockMovement(
+        id: _string(json['id']) ?? '',
+        productId: _string(json['productId']) ?? '',
+        companyId: _string(json['companyId']) ?? '',
+        companyName: _string(json['companyName']) ?? 'Company',
+        companyGstin: _string(json['companyGstin']),
+        productName: _string(json['productName']) ?? 'Product',
+        unit: _string(json['unit']) ?? '',
+        hsnSac: _string(json['hsnSac']),
+        movementType: _string(json['movementType']) ?? 'unknown',
+        quantityDelta: _double(json['quantityDelta']),
+        createdAt: DateTime.tryParse(_string(json['createdAt']) ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        draftId: _string(json['draftId']),
+        documentNumber: _string(json['documentNumber']),
+        documentDate: _string(json['documentDate']),
+        balanceAfter: _double(json['balanceAfter']),
       );
 }
 

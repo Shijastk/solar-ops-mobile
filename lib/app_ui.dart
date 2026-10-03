@@ -293,7 +293,7 @@ class DashboardScreen extends StatelessWidget {
             const EmptyState(
               icon: Icons.business_outlined,
               title: 'No companies configured',
-              body: 'Companies appear after opening stock is configured.',
+              body: 'Companies appear from verified bills or stock entries.',
             )
           else
             ...live.stock.companies.take(3).map(
@@ -541,7 +541,7 @@ class CompaniesScreen extends StatelessWidget {
                   const EmptyState(
                     icon: Icons.business_outlined,
                     title: 'No companies configured',
-                    body: 'Add opening stock to configure a company.',
+                    body: 'Companies are created from verified bills, or when stock is added manually.',
                   )
                 else
                   ...data.stock.companies.map(
@@ -1001,7 +1001,6 @@ class _BillsScreenState extends State<BillsScreen> {
         bill.draft?.destination,
       ].whereType<String>().any((value) => value.toLowerCase().contains(q));
     }).toList();
-
     return RefreshIndicator(
       onRefresh: widget.controller.refresh,
       child: ListView(
@@ -1391,7 +1390,7 @@ class _StockScreenState extends State<StockScreen> {
     }
   }
 
-  Future<void> addOpening() async {
+  Future<void> addStock() async {
     final stock = widget.controller.data?.stock;
     if (stock == null) return;
     final input = await showModalBottomSheet<OpeningStockInput>(
@@ -1418,7 +1417,7 @@ class _StockScreenState extends State<StockScreen> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message ?? 'Opening stock added')),
+        SnackBar(content: Text(message ?? 'Stock added')),
       );
     }
   }
@@ -1440,6 +1439,36 @@ class _StockScreenState extends State<StockScreen> {
         item.companyGstin,
       ].whereType<String>().any((value) => value.toLowerCase().contains(q));
     }).toList();
+    final history = stock.history.where((item) {
+      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      return [
+        item.companyName,
+        item.productName,
+        item.documentNumber,
+      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
+    }).toList();
+
+    String movementTitle(StockMovement item) {
+      switch (item.movementType) {
+        case 'opening':
+          return 'Opening stock';
+        case 'stock_in':
+          return 'Stock in';
+        case 'stock_out':
+          return 'Outgoing';
+        case 'correction':
+          return 'Bill correction';
+        case 'reversal':
+          return 'Bill reversal';
+        case 'adjustment':
+          return 'Physical adjustment';
+        default:
+          return item.movementType.replaceAll('_', ' ');
+      }
+    }
 
     return RefreshIndicator(
       onRefresh: widget.controller.refresh,
@@ -1453,9 +1482,9 @@ class _StockScreenState extends State<StockScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: widget.controller.busy ? null : addOpening,
+            onPressed: widget.controller.busy ? null : addStock,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add opening stock'),
+            label: const Text('Add stock'),
           ),
           const SizedBox(height: 14),
           TextField(
@@ -1476,7 +1505,7 @@ class _StockScreenState extends State<StockScreen> {
             const EmptyState(
               icon: Icons.inventory_2_outlined,
               title: 'No stock products',
-              body: 'Add opening stock to create the first ledger product.',
+              body: 'Verified bills create products automatically. You can also add stock manually.',
             )
           else
             ...balances.map((item) => Padding(
@@ -1514,9 +1543,78 @@ class _StockScreenState extends State<StockScreen> {
                         Text('${qty(item.currentQuantity)} ${item.unit}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w900, fontSize: 16)),
+                        if (item.currentQuantity < 0)
+                          Text('Stock entry pending',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.error)),
                         TextButton(
                           onPressed: widget.controller.busy ? null : () => adjust(item),
                           child: const Text('Adjust'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            )),
+          const SizedBox(height: 18),
+          const SectionTitle(title: 'Recent activity'),
+          const SizedBox(height: 8),
+          if (history.isEmpty)
+            const EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'No stock activity yet',
+              body: 'Verified outgoing bills and stock additions will appear here.',
+            )
+          else
+            ...history.take(30).map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SurfaceCard(
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: appPurple.withValues(alpha: .1),
+                      child: Icon(
+                        item.quantityDelta < 0
+                            ? Icons.north_east_rounded
+                            : Icons.south_west_rounded,
+                        color: appPurple,
+                        size: 19,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.productName,
+                              style: const TextStyle(fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${movementTitle(item)}${item.documentNumber == null ? '' : ' · ${item.documentNumber}'}',
+                            style: muted(context),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            DateFormat('d MMM, h:mm a').format(item.createdAt.toLocal()),
+                            style: muted(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${item.quantityDelta > 0 ? '+' : ''}${qty(item.quantityDelta)} ${item.unit}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 15),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Balance ${qty(item.balanceAfter)}',
+                          style: muted(context),
                         ),
                       ],
                     ),
@@ -2018,7 +2116,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add opening stock',
+            const Text('Add stock',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
@@ -2071,7 +2169,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
             TextField(
               controller: quantityController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Opening quantity'),
+              decoration: const InputDecoration(labelText: 'Quantity received'),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -2088,7 +2186,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                  onPressed: submit, child: const Text('Add opening stock')),
+                  onPressed: submit, child: const Text('Add stock')),
             ),
           ],
         ),
