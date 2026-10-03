@@ -34,10 +34,13 @@ const assert = require('node:assert/strict');
     await screenshot('03-history');
     await page.mouse.click(100, 28);
     await expectLabel('Second Solar Company Limited');
-    await page.getByText('Second Solar Company Limited', { exact: true }).click();
+    // ListTile merges the company name and GSTIN into one accessible text span.
+    await page.getByText('Second Solar Company Limited', { exact: false }).click();
     await expectLabel('INV-2');
-    assert.equal(await page.getByText('INV-1', { exact: false })
-      .or(page.locator('[aria-label*="INV-1"]')).count(), 0);
+    const firstCompanyBill = page.getByText('INV-1', { exact: false })
+      .or(page.locator('[aria-label*="INV-1"]'));
+    await firstCompanyBill.first().waitFor({ state: 'detached' });
+    assert.equal(await firstCompanyBill.count(), 0);
     await page.setViewportSize({ width: 320, height: 740 });
     await screenshot('04-company-history-narrow');
     assert.deepEqual(errors, []);
