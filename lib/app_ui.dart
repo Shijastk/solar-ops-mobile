@@ -1417,7 +1417,7 @@ class _StockScreenState extends State<StockScreen> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message ?? 'Stock added')),
+        SnackBar(content: Text(message ?? 'Stock balance saved')),
       );
     }
   }
@@ -1484,7 +1484,7 @@ class _StockScreenState extends State<StockScreen> {
           FilledButton.icon(
             onPressed: widget.controller.busy ? null : addStock,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add stock'),
+            label: const Text('Set current stock'),
           ),
           const SizedBox(height: 14),
           TextField(
@@ -1540,14 +1540,18 @@ class _StockScreenState extends State<StockScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('${qty(item.currentQuantity)} ${item.unit}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w900, fontSize: 16)),
-                        if (item.currentQuantity < 0)
-                          Text('Stock entry pending',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Theme.of(context).colorScheme.error)),
+                        Text(
+                          item.balanceKnown
+                              ? '${qty(item.currentQuantity)} ${item.unit}'
+                              : 'Not set',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 16),
+                        ),
+                        if (!item.balanceKnown)
+                          Text(
+                            'Stock count not added',
+                            style: muted(context),
+                          ),
                         TextButton(
                           onPressed: widget.controller.busy ? null : () => adjust(item),
                           child: const Text('Adjust'),
@@ -1607,13 +1611,15 @@ class _StockScreenState extends State<StockScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${item.quantityDelta > 0 ? '+' : ''}${qty(item.quantityDelta)} ${item.unit}',
+                          '${qty(item.quantityDelta.abs())} ${item.unit} ${item.quantityDelta < 0 ? 'OUT' : 'IN'}',
                           style: const TextStyle(
                               fontWeight: FontWeight.w900, fontSize: 15),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Balance ${qty(item.balanceAfter)}',
+                          item.balanceAfter == null
+                              ? 'Stock count not set'
+                              : 'Balance ${qty(item.balanceAfter!)}',
                           style: muted(context),
                         ),
                       ],
@@ -2169,7 +2175,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
             TextField(
               controller: quantityController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Quantity received'),
+              decoration: const InputDecoration(labelText: 'Current stock'),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -2186,7 +2192,7 @@ class _OpeningStockSheetState extends State<OpeningStockSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                  onPressed: submit, child: const Text('Add stock')),
+                  onPressed: submit, child: const Text('Save stock')),
             ),
           ],
         ),
