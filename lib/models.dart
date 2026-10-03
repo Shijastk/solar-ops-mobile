@@ -416,6 +416,7 @@ class StockBalance {
     required this.unit,
     required this.hsnSac,
     required this.currentQuantity,
+    required this.balanceKnown,
   });
 
   final String productId;
@@ -426,6 +427,7 @@ class StockBalance {
   final String unit;
   final String? hsnSac;
   final double currentQuantity;
+  final bool balanceKnown;
 
   factory StockBalance.fromJson(Map<String, dynamic> json) => StockBalance(
         productId: _string(json['productId']) ?? '',
@@ -436,6 +438,7 @@ class StockBalance {
         unit: _string(json['unit']) ?? '',
         hsnSac: _string(json['hsnSac']),
         currentQuantity: _double(json['currentQuantity']),
+        balanceKnown: json['balanceKnown'] == true,
       );
 }
 
@@ -472,7 +475,7 @@ class StockMovement {
   final String? draftId;
   final String? documentNumber;
   final String? documentDate;
-  final double balanceAfter;
+  final double? balanceAfter;
 
   factory StockMovement.fromJson(Map<String, dynamic> json) => StockMovement(
         id: _string(json['id']) ?? '',
@@ -490,7 +493,7 @@ class StockMovement {
         draftId: _string(json['draftId']),
         documentNumber: _string(json['documentNumber']),
         documentDate: _string(json['documentDate']),
-        balanceAfter: _double(json['balanceAfter']),
+        balanceAfter: _nullableDouble(json['balanceAfter']),
       );
 }
 
