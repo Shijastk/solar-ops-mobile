@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class StoredSession {
@@ -36,8 +38,29 @@ class SessionStore {
     ]);
   }
 
+  Future<Map<String, dynamic>?> readCache() async {
+    final text = await _storage.read(key: 'solar_ops_cache');
+    if (text == null) return null;
+    try {
+      return Map<String, dynamic>.from(jsonDecode(text) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCache(Map<String, dynamic> data) =>
+      _storage.write(key: 'solar_ops_cache', value: jsonEncode(data));
+  Future<bool> readLock() async =>
+      await _storage.read(key: 'solar_ops_lock') == 'true';
+  Future<void> saveLock(bool enabled) =>
+      _storage.write(key: 'solar_ops_lock', value: '$enabled');
+  Future<String?> readCompany() => _storage.read(key: 'solar_ops_company');
+  Future<void> saveCompany(String? id) =>
+      _storage.write(key: 'solar_ops_company', value: id);
   Future<void> clear() async {
     await Future.wait([
+      _storage.delete(key: 'solar_ops_cache'),
+      _storage.delete(key: 'solar_ops_company'),
       _storage.delete(key: _tokenKey),
       _storage.delete(key: _expiresKey),
     ]);
