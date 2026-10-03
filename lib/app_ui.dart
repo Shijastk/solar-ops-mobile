@@ -1457,6 +1457,8 @@ class _StockScreenState extends State<StockScreen> {
           return 'Opening stock';
         case 'stock_in':
           return 'Stock in';
+        case 'dispatch_inferred':
+          return 'Dispatch availability';
         case 'stock_out':
           return 'Outgoing';
         case 'correction':
@@ -1611,7 +1613,9 @@ class _StockScreenState extends State<StockScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${qty(item.quantityDelta.abs())} ${item.unit} ${item.quantityDelta < 0 ? 'OUT' : 'IN'}',
+                          item.movementType == 'dispatch_inferred'
+                              ? '${qty(item.quantityDelta.abs())} ${item.unit} AVAILABLE'
+                              : '${qty(item.quantityDelta.abs())} ${item.unit} ${item.quantityDelta < 0 ? 'OUT' : 'IN'}',
                           style: const TextStyle(
                               fontWeight: FontWeight.w900, fontSize: 15),
                         ),
