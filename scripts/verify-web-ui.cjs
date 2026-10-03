@@ -16,7 +16,10 @@ const assert = require('node:assert/strict');
     await accessibility.evaluate(element => element.click());
 
     async function expectLabel(label) {
-      await page.locator(`[aria-label*="${label}"]`).first().waitFor({ state: 'attached' });
+      // Flutter 3.35 uses text spans for leaf labels, aria-label for containers.
+      await page.getByText(label, { exact: false })
+        .or(page.locator(`[aria-label*="${label}"]`)).first()
+        .waitFor({ state: 'attached' });
     }
     async function screenshot(name) {
       await page.screenshot({ path: `ui-screenshots/${name}.png` });
@@ -31,13 +34,19 @@ const assert = require('node:assert/strict');
     await screenshot('03-history');
     await page.mouse.click(100, 28);
     await expectLabel('Second Solar Company Limited');
-    await page.locator('[aria-label="Second Solar Company Limited"]').first().click();
+    await page.getByText('Second Solar Company Limited', { exact: true }).click();
     await expectLabel('INV-2');
-    assert.equal(await page.locator('[aria-label*="INV-1"]').count(), 0);
+    assert.equal(await page.getByText('INV-1', { exact: false })
+      .or(page.locator('[aria-label*="INV-1"]')).count(), 0);
     await page.setViewportSize({ width: 320, height: 740 });
     await screenshot('04-company-history-narrow');
     assert.deepEqual(errors, []);
     console.log('PASS: trips, stock, history and company switching; no page errors');
+  } catch (error) {
+    await page.screenshot({ path: 'ui-screenshots/failure.png' });
+    fs.writeFileSync('ui-screenshots/semantics.txt', await page.locator('flt-semantics').evaluateAll(
+      elements => elements.map(e => `${e.getAttribute('aria-label') || ''} ${e.textContent || ''}`).join('\n')));
+    throw error;
   } finally {
     await browser.close();
   }
