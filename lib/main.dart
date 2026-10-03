@@ -8,7 +8,8 @@ void main() {
 }
 
 class SolarOpsApp extends StatelessWidget {
-  const SolarOpsApp({super.key});
+  const SolarOpsApp({super.key, this.home});
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +59,7 @@ class SolarOpsApp extends StatelessWidget {
         inputDecorationTheme: inputs(const Color(0xFF202024)),
         navigationBarTheme: const NavigationBarThemeData(height: 72),
       ),
-      home: const SolarOpsRoot(),
+      home: home ?? const SolarOpsRoot(),
     );
   }
 }

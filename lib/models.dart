@@ -8,8 +8,16 @@ class BootstrapData {
     required this.dispatches,
     required this.stock,
     required this.conversations,
+    this.trips = const [],
+    this.drivers = const [],
+    this.raw = const {},
+    this.todayTotals = const [],
   });
 
+  final List<TodayTotal> todayTotals;
+  final Map<String, dynamic> raw;
+  final List<DeliveryTrip> trips;
+  final List<Driver> drivers;
   final DateTime generatedAt;
   final DateTime? sessionExpiresAt;
   final RuntimeStatus runtime;
@@ -21,22 +29,33 @@ class BootstrapData {
 
   factory BootstrapData.fromJson(Map<String, dynamic> json) {
     return BootstrapData(
+      raw: json,
+      todayTotals: _list(json['todayTotals'])
+          .map((x) => TodayTotal.fromJson(_map(x)))
+          .toList(),
+      trips: _list(
+        json['trips'],
+      ).map((x) => DeliveryTrip.fromJson(_map(x))).toList(),
+      drivers: _list(
+        json['drivers'],
+      ).map((x) => Driver.fromJson(_map(x))).toList(),
       generatedAt: DateTime.tryParse(_string(json['generatedAt']) ?? '') ??
           DateTime.now(),
-      sessionExpiresAt:
-          DateTime.tryParse(_string(json['sessionExpiresAt']) ?? ''),
+      sessionExpiresAt: DateTime.tryParse(
+        _string(json['sessionExpiresAt']) ?? '',
+      ),
       runtime: RuntimeStatus.fromJson(_map(json['runtime'])),
       dashboard: DashboardData.fromJson(_map(json['dashboard'])),
-      bills: _list(json['bills'])
-          .map((item) => Bill.fromJson(_map(item)))
-          .toList(),
-      dispatches: _list(json['dispatches'])
-          .map((item) => DispatchRecord.fromJson(_map(item)))
-          .toList(),
+      bills: _list(
+        json['bills'],
+      ).map((item) => Bill.fromJson(_map(item))).toList(),
+      dispatches: _list(
+        json['dispatches'],
+      ).map((item) => DispatchRecord.fromJson(_map(item))).toList(),
       stock: StockData.fromJson(_map(json['stock'])),
-      conversations: _list(json['conversations'])
-          .map((item) => Conversation.fromJson(_map(item)))
-          .toList(),
+      conversations: _list(
+        json['conversations'],
+      ).map((item) => Conversation.fromJson(_map(item))).toList(),
     );
   }
 }
@@ -88,9 +107,9 @@ class DashboardData {
         inboundMessages: _int(json['inboundMessages']),
         stockProducts: _int(json['stockProducts']),
         totalStockQuantity: _double(json['totalStockQuantity']),
-        dailyBills: _list(json['dailyBills'])
-            .map((item) => DailyBillCount.fromJson(_map(item)))
-            .toList(),
+        dailyBills: _list(
+          json['dailyBills'],
+        ).map((item) => DailyBillCount.fromJson(_map(item))).toList(),
       );
 }
 
@@ -147,8 +166,9 @@ class Bill {
         id: _string(json['id']) ?? '',
         fileName: _string(json['fileName']) ?? 'WhatsApp PDF',
         mimeType: _string(json['mimeType']),
-        mediaSizeBytes:
-            json['mediaSizeBytes'] == null ? null : _int(json['mediaSizeBytes']),
+        mediaSizeBytes: json['mediaSizeBytes'] == null
+            ? null
+            : _int(json['mediaSizeBytes']),
         storageAvailable: json['storageAvailable'] == true,
         processingStatus: _string(json['processingStatus']) ?? 'unknown',
         receivedAt: DateTime.tryParse(_string(json['receivedAt']) ?? '') ??
@@ -270,22 +290,22 @@ class DocumentDraft {
         cgstAmount: _nullableDouble(json['cgstAmount']),
         sgstAmount: _nullableDouble(json['sgstAmount']),
         totalAmount: _nullableDouble(json['totalAmount']),
-        missingFields:
-            _list(json['missingFields']).map((e) => e.toString()).toList(),
+        missingFields: _list(
+          json['missingFields'],
+        ).map((e) => e.toString()).toList(),
         parseError: _string(json['parseError']),
         extractedAt: DateTime.tryParse(_string(json['extractedAt']) ?? ''),
         approvedAt: DateTime.tryParse(_string(json['approvedAt']) ?? ''),
-        verificationStatus:
-            _string(json['verificationStatus']) ?? 'unknown',
+        verificationStatus: _string(json['verificationStatus']) ?? 'unknown',
         workflowStatus: _string(json['workflowStatus']) ?? 'unknown',
         stockStatus: _string(json['stockStatus']) ?? 'unknown',
         stockError: _string(json['stockError']),
         stockUpdatedAt:
             DateTime.tryParse(_string(json['stockUpdatedAt']) ?? ''),
         stockCompanyId: _string(json['stockCompanyId']),
-        items: _list(json['items'])
-            .map((item) => DocumentItem.fromJson(_map(item)))
-            .toList(),
+        items: _list(
+          json['items'],
+        ).map((item) => DocumentItem.fromJson(_map(item))).toList(),
       );
 }
 
@@ -380,20 +400,24 @@ class StockData {
   final List<StockMovement> history;
 
   factory StockData.fromJson(Map<String, dynamic> json) => StockData(
-        companies: _list(json['companies'])
-            .map((item) => StockCompany.fromJson(_map(item)))
-            .toList(),
-        balances: _list(json['balances'])
-            .map((item) => StockBalance.fromJson(_map(item)))
-            .toList(),
-        history: _list(json['history'])
-            .map((item) => StockMovement.fromJson(_map(item)))
-            .toList(),
+        companies: _list(
+          json['companies'],
+        ).map((item) => StockCompany.fromJson(_map(item))).toList(),
+        balances: _list(
+          json['balances'],
+        ).map((item) => StockBalance.fromJson(_map(item))).toList(),
+        history: _list(
+          json['history'],
+        ).map((item) => StockMovement.fromJson(_map(item))).toList(),
       );
 }
 
 class StockCompany {
-  const StockCompany({required this.id, required this.name, required this.gstin});
+  const StockCompany({
+    required this.id,
+    required this.name,
+    required this.gstin,
+  });
 
   final String id;
   final String name;
@@ -525,9 +549,9 @@ class Conversation {
                 DateTime.fromMillisecondsSinceEpoch(0),
         latestInboundMessageId: _string(json['latestInboundMessageId']),
         canReply: json['canReply'] == true,
-        timeline: _list(json['timeline'])
-            .map((item) => ConversationEvent.fromJson(_map(item)))
-            .toList(),
+        timeline: _list(
+          json['timeline'],
+        ).map((item) => ConversationEvent.fromJson(_map(item))).toList(),
       );
 }
 
@@ -574,8 +598,9 @@ class ConversationEvent {
         textBody: _string(json['textBody']),
         fileName: _string(json['fileName']),
         mimeType: _string(json['mimeType']),
-        mediaSizeBytes:
-            json['mediaSizeBytes'] == null ? null : _int(json['mediaSizeBytes']),
+        mediaSizeBytes: json['mediaSizeBytes'] == null
+            ? null
+            : _int(json['mediaSizeBytes']),
         storageAvailable: json['storageAvailable'] == true,
         processingStatus: _string(json['processingStatus']),
         body: _string(json['body']),
@@ -606,4 +631,62 @@ double? _nullableDouble(dynamic value) {
   if (value == null) return null;
   if (value is num) return value.toDouble();
   return double.tryParse(value.toString());
+}
+
+class Driver {
+  const Driver({required this.id, required this.name});
+  final String id;
+  final String name;
+  factory Driver.fromJson(Map<String, dynamic> json) => Driver(
+        id: _string(json['id']) ?? '',
+        name: _string(json['name']) ?? 'Driver',
+      );
+}
+
+class TripBill {
+  TripBill.fromJson(Map<String, dynamic> json)
+      : messageId = _string(json['messageId']) ?? '',
+        companyId = _string(json['companyId']),
+        companyGstin = _string(json['companyGstin']),
+        number = _string(json['number']) ?? 'Bill',
+        needsAttention = json['needsAttention'] == true,
+        duplicate = json['duplicate'] == true;
+  final String messageId;
+  final String? companyId;
+  final String? companyGstin;
+  final String number;
+  final bool needsAttention;
+  final bool duplicate;
+}
+
+class DeliveryTrip {
+  DeliveryTrip.fromJson(Map<String, dynamic> json)
+      : companyId = _string(json['companyId']),
+        id = _string(json['id']) ?? '',
+        name = _string(json['name']) ?? 'Trip',
+        status = _string(json['status']) ?? 'collecting',
+        driverId = _string(json['driverId']),
+        driverName = _string(json['driverName']),
+        vehicleNumber = _string(json['vehicleNumber']),
+        bills = _list(
+          json['bills'],
+        ).map((x) => TripBill.fromJson(_map(x))).toList();
+  final String? companyId;
+  final String id;
+  final String name;
+  final String status;
+  final String? driverId;
+  final String? driverName;
+  final String? vehicleNumber;
+  final List<TripBill> bills;
+}
+
+class TodayTotal {
+  TodayTotal.fromJson(Map<String, dynamic> json)
+      : companyId = _string(json['companyId']),
+        billCount = _int(json['billCount']),
+        totalAmount = _double(json['totalAmount']);
+  final String? companyId;
+  final int billCount;
+  final double totalAmount;
 }

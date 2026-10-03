@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -40,4 +40,23 @@ jobs:
           name: solar-ops-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Build synthetic UI fixture
+        run: flutter build web --release -t test/preview_app.dart
+
+      - name: Verify mobile web layout
+        run: |
+          npm install --prefix /tmp/solar-ui playwright@1.63.0 --no-audit --no-fund
+          /tmp/solar-ui/node_modules/.bin/playwright install --with-deps chromium
+          python3 -m http.server 8765 --directory build/web > /tmp/solar-ui-server.log 2>&1 &
+          SOLAR_UI_MODULE=/tmp/solar-ui/node_modules/playwright node scripts/verify-web-ui.cjs
+
+      - name: Upload UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solar-ops-ui-screenshots
+          path: ui-screenshots/
+          if-no-files-found: warn
           retention-days: 14

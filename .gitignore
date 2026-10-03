@@ -20,3 +20,7 @@ android/key.properties
 
 # Misc
 .DS_Store
+
+
+# Generated plugin registration
+android/app/src/main/java/io/flutter/plugins/

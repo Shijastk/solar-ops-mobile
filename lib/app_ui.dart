@@ -1,2672 +1,1245 @@
-
+import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'app_controller.dart';
 import 'models.dart';
-
-const appPurple = Color(0xFF635BDF);
+import 'support_ui.dart';
+export 'support_ui.dart';
 
 class SolarOpsRoot extends StatefulWidget {
   const SolarOpsRoot({super.key});
-
   @override
-  State<SolarOpsRoot> createState() => _SolarOpsRootState();
+  State<SolarOpsRoot> createState() => _RootState();
 }
 
-class _SolarOpsRootState extends State<SolarOpsRoot> {
+class _RootState extends State<SolarOpsRoot> with WidgetsBindingObserver {
   late final AppController controller;
-
+  DateTime? backgroundAt;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     controller = AppController()..initialize();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) backgroundAt = DateTime.now();
+    if (state == AppLifecycleState.resumed && backgroundAt != null) {
+      if (DateTime.now().difference(backgroundAt!) >
+          const Duration(minutes: 1)) {
+        controller.lock();
+      }
+      backgroundAt = null;
+      if (!controller.locked) unawaited(controller.refresh(silent: true));
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     controller.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        if (controller.initializing) return const SplashScreen();
-        if (!controller.signedIn) return LoginScreen(controller: controller);
-        return AppShell(controller: controller);
-      },
-    );
-  }
-}
-
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.solar_power_rounded, size: 54, color: appPurple),
-            SizedBox(height: 18),
-            CircularProgressIndicator(),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          if (controller.initializing) {
+            return const Scaffold(
+              body: Center(
+                child: Icon(Icons.solar_power, size: 56, color: appPurple),
+              ),
+            );
+          }
+          if (!controller.signedIn) return LoginScreen(controller: controller);
+          if (controller.locked) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline, size: 48),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: controller.unlockApp,
+                      child: const Text('Unlock Solar Ops'),
+                    ),
+                    if (controller.error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(controller.error!),
+                      ),
+                    TextButton(
+                      onPressed: controller.logout,
+                      child: const Text('Sign out'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return AppShell(controller: controller);
+        },
+      );
 }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.controller});
   final AppController controller;
-
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final keyController = TextEditingController();
-  bool obscure = true;
-
+class _LoginState extends State<LoginScreen> {
+  final keyInput = TextEditingController();
   @override
   void dispose() {
-    keyController.dispose();
+    keyInput.dispose();
     super.dispose();
   }
 
-  Future<void> submit() async {
-    final key = keyController.text.trim();
-    if (key.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    await widget.controller.login(key);
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: appPurple.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(18),
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(Icons.solar_power, size: 52, color: appPurple),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Solar Ops',
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
                     ),
-                    child: const Icon(Icons.solar_power_rounded,
-                        color: appPurple, size: 30),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('Solar Ops',
-                      style: TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1.2)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Use the same operations access key as the web dashboard.',
-                    style: muted(context),
-                  ),
-                  const SizedBox(height: 28),
-                  TextField(
-                    controller: keyController,
-                    obscureText: obscure,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => submit(),
-                    decoration: InputDecoration(
-                      labelText: 'Operations access key',
-                      prefixIcon: const Icon(Icons.key_rounded),
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(() => obscure = !obscure),
-                        icon: Icon(obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connect this phone once.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: keyInput,
+                      obscureText: true,
+                      decoration:
+                          const InputDecoration(labelText: 'Access key'),
+                      onSubmitted: (_) =>
+                          widget.controller.login(keyInput.text.trim()),
+                    ),
+                    if (widget.controller.error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(widget.controller.error!),
+                      ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: widget.controller.busy
+                          ? null
+                          : () => widget.controller.login(keyInput.text.trim()),
+                      child: Text(
+                        widget.controller.busy ? 'Connecting…' : 'Connect',
                       ),
                     ),
-                  ),
-                  if (widget.controller.error != null) ...[
-                    const SizedBox(height: 12),
-                    ErrorBox(message: widget.controller.error!),
                   ],
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: widget.controller.busy ? null : submit,
-                      child: widget.controller.busy
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Sign in'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
         ),
+      );
+}
+
+void toast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+Future<void> saveAction(
+  BuildContext context,
+  AppController controller,
+  Future<void> Function(String) action, {
+  String success = 'Saved',
+}) async {
+  final error = await controller.runMutation(action);
+  if (context.mounted) toast(context, error ?? success);
+}
+
+Future<String?> askText(
+  BuildContext context,
+  String title, {
+  String? initial,
+  bool number = false,
+}) async {
+  final input = TextEditingController(text: initial);
+  final result = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        autofocus: true,
+        controller: input,
+        keyboardType: number
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        onSubmitted: (_) => Navigator.pop(context, input.text.trim()),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, input.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  input.dispose();
+  return result;
+}
+
+Future<void> upload(
+  BuildContext context,
+  AppController controller, {
+  String? tripId,
+}) async {
+  try {
+    final selected = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: false,
+      withReadStream: true,
     );
+    if (selected == null || !context.mounted) return;
+    final file = selected.files.single;
+    if (file.size > 4 * 1024 * 1024) {
+      toast(context, 'Choose a PDF smaller than 4 MB');
+      return;
+    }
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && file.readStream != null) {
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in file.readStream!) {
+        if (builder.length + chunk.length > 4 * 1024 * 1024) {
+          throw Exception('File too large');
+        }
+        builder.add(chunk);
+      }
+      bytes = builder.takeBytes();
+    }
+    if (bytes == null) throw Exception('Could not read file');
+    String result = 'Bill saved';
+    final error = await controller.runMutation((token) async {
+      result = await controller.api.uploadBill(
+        token,
+        file.name,
+        bytes!,
+        tripId: tripId,
+      );
+    });
+    if (context.mounted) toast(context, error ?? result);
+  } catch (_) {
+    if (context.mounted) toast(context, 'Could not open file picker');
   }
 }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.controller});
   final AppController controller;
-
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<AppShell> createState() => _ShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _ShellState extends State<AppShell> {
   int index = 0;
+  AppController get c => widget.controller;
+  Future<void> companyPicker() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: const Text('All companies'),
+              trailing:
+                  c.selectedCompanyId == null ? const Icon(Icons.check) : null,
+              onTap: () {
+                c.selectCompany(null);
+                Navigator.pop(context);
+              },
+            ),
+            ...?c.data?.stock.companies.map(
+              (company) => ListTile(
+                title: Text(company.name),
+                subtitle: Text(company.gstin ?? ''),
+                trailing: c.selectedCompanyId == company.id
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  c.selectCompany(company.id);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final data = widget.controller.data;
-    if (data == null) {
-      return Scaffold(
-        body: Center(
-          child: FilledButton.icon(
-            onPressed: widget.controller.refresh,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Reload Solar Ops'),
-          ),
+  Future<void> menu(String item) async {
+    if (item == 'drivers') {
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => DriversPage(controller: c)),
+      );
+    }
+    if (item == 'chat') {
+      unawaited(c.loadConversations());
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ConversationsScreen(controller: c),
         ),
       );
     }
+    if (item == 'lock') {
+      final success = await c.setDeviceLock(!c.lockEnabled);
+      if (mounted) {
+        toast(
+          context,
+          success
+              ? (c.lockEnabled ? 'Device lock enabled' : 'Device lock off')
+              : c.error ?? 'Device lock unavailable',
+        );
+      }
+    }
+    if (item == 'logout') await c.logout();
+  }
 
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+      listenable: c, builder: (context, _) => buildShell(context));
+
+  Widget buildShell(BuildContext context) {
+    final data = c.data;
+    String company = 'All companies';
+    for (final item in data?.stock.companies ?? <StockCompany>[]) {
+      if (item.id == c.selectedCompanyId) company = item.name;
+    }
     return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(
-          index: index,
-          children: [
-            DashboardScreen(controller: widget.controller, data: data),
-            BillsScreen(controller: widget.controller),
-            DispatchScreen(controller: widget.controller),
-            StockScreen(controller: widget.controller),
-            MoreScreen(controller: widget.controller),
-          ],
+      appBar: AppBar(
+        title: InkWell(
+          onTap: companyPicker,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  company,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.expand_more),
+            ],
+          ),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: menu,
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'drivers', child: Text('Drivers')),
+              const PopupMenuItem(value: 'chat', child: Text('WhatsApp')),
+              PopupMenuItem(
+                value: 'lock',
+                child: Text(
+                  c.lockEnabled
+                      ? 'Turn off device lock'
+                      : 'Use fingerprint / device PIN',
+                ),
+              ),
+              const PopupMenuItem(value: 'logout', child: Text('Sign out')),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    c.error ??
+                        (data == null
+                            ? 'Getting your data…'
+                            : 'Synced ${dateTime(data.generatedAt)}'),
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: c.error != null
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: c.refreshing ? null : () => c.refresh(),
+                  icon: c.refreshing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh, size: 20),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: c.refresh,
+              child: data == null
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 100),
+                        Center(child: Text('Pull down to try again')),
+                      ],
+                    )
+                  : IndexedStack(
+                      index: index,
+                      children: [
+                        TripsPage(controller: c),
+                        SimpleStockPage(controller: c),
+                        HistoryPage(controller: c),
+                      ],
+                    ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        height: 72,
-        onDestinationSelected: (value) => setState(() => index = value),
+        onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.grid_view_rounded), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Bills'),
-          NavigationDestination(icon: Icon(Icons.local_shipping_outlined), label: 'Dispatch'),
-          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), label: 'Stock'),
-          NavigationDestination(icon: Icon(Icons.more_horiz_rounded), label: 'More'),
+          NavigationDestination(
+            icon: Icon(Icons.local_shipping_outlined),
+            label: 'Trips',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            label: 'Stock',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            label: 'History',
+          ),
         ],
       ),
     );
   }
 }
 
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({
-    super.key,
-    required this.controller,
-    required this.data,
-  });
+bool billMatches(Bill bill, String? companyId) =>
+    companyId == null || bill.companyId == companyId;
 
+class TripsPage extends StatelessWidget {
+  const TripsPage({super.key, required this.controller});
   final AppController controller;
-  final BootstrapData data;
-
   @override
   Widget build(BuildContext context) {
-    final dashboard = controller.data?.dashboard ?? data.dashboard;
-    final live = controller.data ?? data;
-    return RefreshIndicator(
-      onRefresh: controller.refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-        children: [
-          AppHeader(
-            title: 'Solar Ops',
-            subtitle: live.runtime.healthy ? 'Live operations' : 'Check server config',
-            healthy: live.runtime.healthy,
-            onRefresh: controller.refresh,
-          ),
-          if (controller.error != null) ...[
-            const SizedBox(height: 12),
-            ErrorBox(message: controller.error!),
-          ],
-          const SizedBox(height: 22),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = (constraints.maxWidth - 12) / 2;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  MetricCard(width: width, icon: Icons.receipt_long_outlined,
-                      value: dashboard.billsToday.toString(), label: 'Bills today'),
-                  MetricCard(width: width, icon: Icons.fact_check_outlined,
-                      value: dashboard.pendingReview.toString(), label: 'Pending review'),
-                  MetricCard(width: width, icon: Icons.verified_outlined,
-                      value: dashboard.recorded.toString(), label: 'Recorded'),
-                  MetricCard(width: width, icon: Icons.inventory_2_outlined,
-                      value: dashboard.stockProducts.toString(), label: 'Stock products'),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 28),
-          const SectionTitle(title: 'Last 7 days'),
-          const SizedBox(height: 12),
-          DailyChart(items: dashboard.dailyBills),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              const Expanded(child: SectionTitle(title: 'Companies')),
-              TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CompaniesScreen(controller: controller),
-                  ),
-                ),
-                child: const Text('View all'),
+    final c = controller, data = c.data!;
+    final trips = data.trips
+        .where(
+            (t) => t.status == 'collecting' || t.bills.any((b) => !b.duplicate))
+        .where(
+          (t) =>
+              c.selectedCompanyId == null ||
+              t.companyId == c.selectedCompanyId ||
+              t.bills.any(
+                (b) =>
+                    b.companyId == c.selectedCompanyId ||
+                    data.stock.companies.any(
+                      (company) =>
+                          company.id == c.selectedCompanyId &&
+                          company.gstin == b.companyGstin,
+                    ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (live.stock.companies.isEmpty)
-            const EmptyState(
-              icon: Icons.business_outlined,
-              title: 'No companies configured',
-              body: 'Companies appear from verified bills or stock entries.',
-            )
-          else
-            ...live.stock.companies.take(3).map(
-                  (company) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: CompanyOverviewCard(
-                      snapshot: CompanySnapshot.fromData(live, company),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => CompanyDetailScreen(
-                            controller: controller,
-                            companyId: company.id,
+        )
+        .toList();
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        FilledButton.icon(
+          onPressed: c.busy
+              ? null
+              : () => saveAction(context, c, (token) async {
+                    final result = await c.api.operation(token, {
+                      'action': 'create_trip',
+                      'companyId': c.selectedCompanyId,
+                    });
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => TripPage(
+                            controller: c,
+                            tripId: result['id'].toString(),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-          const SizedBox(height: 18),
-          const SectionTitle(title: 'Recent bills'),
-          const SizedBox(height: 10),
-          if (live.bills.isEmpty)
-            const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No bills yet',
-              body: 'Incoming WhatsApp PDFs will appear here.',
-            )
-          else
-            ...live.bills.take(4).map((bill) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: BillTile(
-                bill: bill,
-                onTap: () => openBill(context, controller, bill.id),
-              ),
-            )),
-          const SizedBox(height: 16),
-          StatusStrip(
-            label: 'WhatsApp inbound',
-            value: '${dashboard.inboundMessages} loaded',
-            positive: live.runtime.healthy,
-          ),
-          const SizedBox(height: 10),
-          StatusStrip(
-            label: 'Automation',
-            value: live.runtime.automationEnabled
-                ? (live.runtime.automationReady ? 'Ready' : 'Not ready')
-                : 'Disabled',
-            positive: !live.runtime.automationEnabled || live.runtime.automationReady,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-class CompanySnapshot {
-  const CompanySnapshot({
-    required this.company,
-    required this.bills,
-    required this.dispatches,
-    required this.balances,
-  });
-
-  final StockCompany company;
-  final List<Bill> bills;
-  final List<DispatchRecord> dispatches;
-  final List<StockBalance> balances;
-
-  int get pendingReview => bills.where((bill) {
-        final draft = bill.draft;
-        return draft != null &&
-            (draft.workflowStatus == 'review_required' ||
-                draft.parseStatus == 'ready_for_review' ||
-                draft.parseStatus == 'needs_review');
-      }).length;
-
-  factory CompanySnapshot.fromData(
-    BootstrapData data,
-    StockCompany company,
-  ) {
-    return CompanySnapshot(
-      company: company,
-      bills: data.bills.where((bill) => bill.companyId == company.id).toList(),
-      dispatches: data.dispatches
-          .where((dispatch) => dispatch.companyId == company.id)
-          .toList(),
-      balances: data.stock.balances
-          .where((balance) => balance.companyId == company.id)
-          .toList(),
-    );
-  }
-}
-
-class CompanyOverviewCard extends StatelessWidget {
-  const CompanyOverviewCard({
-    super.key,
-    required this.snapshot,
-    required this.onTap,
-  });
-
-  final CompanySnapshot snapshot;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: appPurple.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.business_outlined, color: appPurple),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      snapshot.company.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      snapshot.company.gstin ?? 'GSTIN unavailable',
-                      style: muted(context),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: CompanyMiniMetric(
-                  label: 'Bills',
-                  value: snapshot.bills.length.toString(),
-                ),
-              ),
-              Expanded(
-                child: CompanyMiniMetric(
-                  label: 'Pending',
-                  value: snapshot.pendingReview.toString(),
-                ),
-              ),
-              Expanded(
-                child: CompanyMiniMetric(
-                  label: 'Products',
-                  value: snapshot.balances.length.toString(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class CompanyMiniMetric extends StatelessWidget {
-  const CompanyMiniMetric({
-    super.key,
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      );
+                    }
+                  }, success: 'Trip created'),
+          icon: const Icon(Icons.add),
+          label: const Text('New trip'),
         ),
-        const SizedBox(height: 2),
-        Text(label, style: muted(context)),
+        const SizedBox(height: 18),
+        if (trips.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Text('No trips yet. Start a trip and add bills.'),
+          ),
+        ...trips.map(
+          (t) => Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              leading: const Icon(Icons.local_shipping_outlined),
+              title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                '${t.bills.where((b) => !b.duplicate).length} bills · ${t.driverName ?? 'Choose driver'}\n${t.bills.any((b) => b.needsAttention) ? 'Check bills' : t.status == 'ready' ? 'Ready to dispatch' : t.status == 'cancelled' ? 'Cancelled' : 'Add bills'}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => TripPage(controller: c, tripId: t.id),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-class CompaniesScreen extends StatelessWidget {
-  const CompaniesScreen({super.key, required this.controller});
-
+class TripPage extends StatelessWidget {
+  const TripPage({super.key, required this.controller, required this.tripId});
   final AppController controller;
-
+  final String tripId;
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final data = controller.data;
-        if (data == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final unassigned =
-            data.bills.where((bill) => bill.companyId == null).toList();
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('Companies')),
-          body: RefreshIndicator(
-            onRefresh: controller.refresh,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 30),
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          DeliveryTrip? trip;
+          for (final t in controller.data?.trips ?? <DeliveryTrip>[]) {
+            if (t.id == tripId) trip = t;
+          }
+          if (trip == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Trip')),
+              body: Center(
+                child: TextButton(
+                  onPressed: controller.refresh,
+                  child: const Text('Refresh'),
+                ),
+              ),
+            );
+          }
+          final t = trip, c = controller;
+          return Scaffold(
+            appBar: AppBar(title: Text(t.name)),
+            body: ListView(
+              padding: const EdgeInsets.all(18),
               children: [
-                const Text(
-                  'Company-wise operations',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -.6,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Bills are assigned only from the canonical company mapping or an exact GSTIN match.',
-                  style: muted(context),
-                ),
-                const SizedBox(height: 18),
-                if (data.stock.companies.isEmpty)
-                  const EmptyState(
-                    icon: Icons.business_outlined,
-                    title: 'No companies configured',
-                    body: 'Companies are created from verified bills, or when stock is added manually.',
-                  )
-                else
-                  ...data.stock.companies.map(
-                    (company) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: CompanyOverviewCard(
-                        snapshot: CompanySnapshot.fromData(data, company),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => CompanyDetailScreen(
-                              controller: controller,
-                              companyId: company.id,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (unassigned.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  SurfaceCard(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => UnassignedBillsScreen(
-                          controller: controller,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.help_outline_rounded,
-                            color: Colors.orange),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${unassigned.length} unassigned bill${unassigned.length == 1 ? '' : 's'}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                'No company was guessed. Review these bills separately.',
-                                style: muted(context),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class CompanyDetailScreen extends StatelessWidget {
-  const CompanyDetailScreen({
-    super.key,
-    required this.controller,
-    required this.companyId,
-  });
-
-  final AppController controller;
-  final String companyId;
-
-  StockCompany? _companyFrom(BootstrapData data) {
-    for (final company in data.stock.companies) {
-      if (company.id == companyId) return company;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final data = controller.data;
-        if (data == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final company = _companyFrom(data);
-        if (company == null) {
-          return const Scaffold(
-            body: Center(child: Text('Company is no longer available.')),
-          );
-        }
-
-        final snapshot = CompanySnapshot.fromData(data, company);
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('Company')),
-          body: RefreshIndicator(
-            onRefresh: controller.refresh,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
-              children: [
-                SurfaceCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.business_outlined,
-                        color: appPurple,
-                        size: 30,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        company.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'GSTIN ${company.gstin ?? '—'}',
-                        style: muted(context),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Grouped by canonical company ID / exact GSTIN. Display-name guessing is not used.',
-                        style: muted(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = (constraints.maxWidth - 10) / 2;
-                    return Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        MetricCard(
-                          width: width,
-                          icon: Icons.receipt_long_outlined,
-                          value: snapshot.bills.length.toString(),
-                          label: 'Bills',
-                        ),
-                        MetricCard(
-                          width: width,
-                          icon: Icons.fact_check_outlined,
-                          value: snapshot.pendingReview.toString(),
-                          label: 'Pending review',
-                        ),
-                        MetricCard(
-                          width: width,
-                          icon: Icons.inventory_2_outlined,
-                          value: snapshot.balances.length.toString(),
-                          label: 'Stock products',
-                        ),
-                        MetricCard(
-                          width: width,
-                          icon: Icons.local_shipping_outlined,
-                          value: snapshot.dispatches.length.toString(),
-                          label: 'Dispatches',
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 26),
-                const SectionTitle(title: 'Current stock'),
-                const SizedBox(height: 10),
-                if (snapshot.balances.isEmpty)
-                  const EmptyState(
-                    icon: Icons.inventory_2_outlined,
-                    title: 'No stock products',
-                    body: 'No configured stock products for this company.',
-                  )
-                else
-                  ...snapshot.balances.map(
-                    (balance) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SurfaceCard(
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.inventory_2_outlined,
-                              color: appPurple,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(t.driverName ?? 'Choose driver'),
+                  leading: const Icon(Icons.person_outline),
+                  trailing: const Icon(Icons.expand_more),
+                  onTap: c.busy
+                      ? null
+                      : () async {
+                          final driver = await showModalBottomSheet<Driver>(
+                            context: context,
+                            showDragHandle: true,
+                            builder: (context) => SafeArea(
+                              child: ListView(
+                                shrinkWrap: true,
                                 children: [
-                                  Text(
-                                    balance.productName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
+                                  ...?(c.data?.drivers.map(
+                                    (d) => ListTile(
+                                      title: Text(d.name),
+                                      onTap: () => Navigator.pop(context, d),
                                     ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    balance.hsnSac == null
-                                        ? balance.unit
-                                        : '${balance.unit} · HSN ${balance.hsnSac}',
-                                    style: muted(context),
+                                  )),
+                                  ListTile(
+                                    title: const Text('+ Add driver'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              DriversPage(controller: c),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
                             ),
-                            Text(
-                              '${qty(balance.currentQuantity)} ${balance.unit}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                          );
+                          if (driver != null && context.mounted) {
+                            await saveAction(context, c, (token) async {
+                              await c.api.operation(token, {
+                                'action': 'update_trip',
+                                'tripId': t.id,
+                                'driverId': driver.id,
+                                'close': false,
+                              });
+                            });
+                          }
+                        },
+                ),
+                if (t.vehicleNumber != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(t.vehicleNumber!),
+                  ),
+                ...t.bills.where((b) => !b.duplicate).map(
+                      (b) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          b.needsAttention
+                              ? Icons.error_outline
+                              : Icons.receipt_long_outlined,
+                        ),
+                        title: Text(b.number),
+                        subtitle: b.needsAttention
+                            ? const Text('Needs checking')
+                            : null,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => SimpleBillPage(
+                                controller: c, billId: b.messageId),
+                          ),
                         ),
                       ),
                     ),
+                if (t.status == 'collecting') ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed:
+                        c.busy ? null : () => upload(context, c, tripId: t.id),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Upload bill'),
                   ),
-                const SizedBox(height: 20),
-                const SectionTitle(title: 'Bills'),
-                const SizedBox(height: 10),
-                if (snapshot.bills.isEmpty)
-                  const EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'No assigned bills',
-                    body: 'No bill is currently mapped to this company.',
-                  )
-                else
-                  ...snapshot.bills.map(
-                    (bill) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: BillTile(
-                        bill: bill,
-                        onTap: () => openBill(context, controller, bill.id),
-                      ),
-                    ),
+                  TextButton(
+                    onPressed: c.busy
+                        ? null
+                        : () async {
+                            final linked = c.data!.trips
+                                .expand((t) => t.bills)
+                                .map((b) => b.messageId)
+                                .toSet();
+                            final bill = await showModalBottomSheet<Bill>(
+                              context: context,
+                              showDragHandle: true,
+                              builder: (context) => SafeArea(
+                                child: ListView(
+                                  shrinkWrap: true,
+                                  children: c.data!.bills
+                                      .where(
+                                        (b) =>
+                                            !linked.contains(b.id) &&
+                                            billMatches(
+                                                b, c.selectedCompanyId) &&
+                                            b.draft?.workflowStatus !=
+                                                'cancelled',
+                                      )
+                                      .map(
+                                        (b) => ListTile(
+                                          title: Text(
+                                            b.draft?.documentNumber ??
+                                                b.fileName,
+                                          ),
+                                          onTap: () =>
+                                              Navigator.pop(context, b),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                            );
+                            if (bill != null && context.mounted) {
+                              await saveAction(context, c, (token) async {
+                                await c.api.operation(token, {
+                                  'action': 'attach_bill',
+                                  'tripId': t.id,
+                                  'messageId': bill.id,
+                                });
+                              });
+                            }
+                          },
+                    child: const Text('Choose existing bill'),
                   ),
-                const SizedBox(height: 20),
-                const SectionTitle(title: 'Dispatch'),
-                const SizedBox(height: 10),
-                if (snapshot.dispatches.isEmpty)
-                  const EmptyState(
-                    icon: Icons.local_shipping_outlined,
-                    title: 'No dispatch records',
-                    body: 'No parsed dispatch is assigned to this company.',
-                  )
-                else
-                  ...snapshot.dispatches.map(
-                    (dispatch) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: DispatchSummaryCard(item: dispatch),
-                    ),
+                ],
+                if (t.status != 'ready' && t.status != 'cancelled')
+                  FilledButton(
+                    onPressed: c.busy
+                        ? null
+                        : () => saveAction(context, c, (token) async {
+                              await c.api.operation(token, {
+                                'action': 'update_trip',
+                                'tripId': t.id,
+                                'driverId': t.driverId,
+                                'close': true,
+                              });
+                            }, success: 'Trip ready'),
+                    child: const Text('Ready to dispatch'),
+                  ),
+                if (t.status == 'ready')
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child:
+                        Text('Ready to dispatch', textAlign: TextAlign.center),
                   ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
+          );
+        },
+      );
 }
 
-class UnassignedBillsScreen extends StatelessWidget {
-  const UnassignedBillsScreen({super.key, required this.controller});
-
+class DriversPage extends StatelessWidget {
+  const DriversPage({super.key, required this.controller});
   final AppController controller;
-
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final bills = controller.data?.bills
-                .where((bill) => bill.companyId == null)
-                .toList() ??
-            const <Bill>[];
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('Unassigned bills')),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
-            children: [
-              const ErrorBox(
-                message:
-                    'These bills are not assigned because no canonical company ID or exact GSTIN match is available.',
-              ),
-              const SizedBox(height: 14),
-              if (bills.isEmpty)
-                const EmptyState(
-                  icon: Icons.check_circle_outline,
-                  title: 'Nothing unassigned',
-                  body: 'All loaded bills have a canonical company.',
-                )
-              else
-                ...bills.map(
-                  (bill) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: BillTile(
-                      bill: bill,
-                      onTap: () => openBill(context, controller, bill.id),
-                    ),
-                  ),
-                ),
-            ],
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => Scaffold(
+          appBar: AppBar(title: const Text('Drivers')),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: controller.busy
+                ? null
+                : () async {
+                    final name = await askText(context, 'Driver name');
+                    if (name != null && name.isNotEmpty && context.mounted) {
+                      await saveAction(context, controller, (token) async {
+                        await controller.api.operation(token, {
+                          'action': 'driver',
+                          'name': name,
+                        });
+                      });
+                    }
+                  },
+            icon: const Icon(Icons.add),
+            label: const Text('Add driver'),
           ),
-        );
-      },
-    );
-  }
-}
-
-class CompanyFilterField extends StatelessWidget {
-  const CompanyFilterField({
-    super.key,
-    required this.companies,
-    required this.selectedCompanyId,
-    required this.onChanged,
-  });
-
-  final List<StockCompany> companies;
-  final String? selectedCompanyId;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String?>(
-      initialValue: selectedCompanyId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Company',
-        prefixIcon: Icon(Icons.business_outlined),
-      ),
-      items: [
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text(
-            'All companies',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          body: ListView(
+            padding: const EdgeInsets.only(bottom: 100),
+            children: (controller.data?.drivers ?? [])
+                .map(
+                  (d) => ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: Text(d.name),
+                  ),
+                )
+                .toList(),
           ),
         ),
-        ...companies.map(
-          (company) => DropdownMenuItem<String?>(
-            value: company.id,
-            child: Text(
-              company.name,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
+      );
+}
+
+class SimpleStockPage extends StatefulWidget {
+  const SimpleStockPage({super.key, required this.controller});
+  final AppController controller;
+  @override
+  State<SimpleStockPage> createState() => _StockState();
+}
+
+class _StockState extends State<SimpleStockPage> {
+  String query = '';
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller, data = c.data!;
+    final balances = data.stock.balances.where(
+      (b) =>
+          (c.selectedCompanyId == null || b.companyId == c.selectedCompanyId) &&
+          b.productName.toLowerCase().contains(query.toLowerCase()),
+    );
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        TextField(
+          decoration: const InputDecoration(
+            hintText: 'Search stock',
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (v) => setState(() => query = v),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: c.busy
+              ? null
+              : () async {
+                  final input = await showModalBottomSheet<OpeningStockInput>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) =>
+                        OpeningStockSheet(companies: data.stock.companies),
+                  );
+                  if (input != null && context.mounted) {
+                    await saveAction(
+                      context,
+                      c,
+                      (token) => c.api.addOpeningStock(
+                        token: token,
+                        companyId: input.companyId,
+                        companyName: input.companyName,
+                        companyGstin: input.companyGstin,
+                        productName: input.productName,
+                        unit: input.unit,
+                        quantity: input.quantity,
+                        hsnSac: input.hsnSac,
+                        allowSimilarCompany: input.allowSimilarCompany,
+                        allowSimilarProduct: input.allowSimilarProduct,
+                      ),
+                    );
+                  }
+                },
+          icon: const Icon(Icons.add),
+          label: const Text('Set stock'),
+        ),
+        ...balances.map(
+          (b) => Card(
+            child: ListTile(
+              title: Text(b.productName),
+              subtitle:
+                  c.selectedCompanyId == null ? Text(b.companyName) : null,
+              trailing: Text(
+                b.balanceKnown
+                    ? '${qty(b.currentQuantity)} ${b.unit}'
+                    : 'Unknown',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              onTap: c.busy
+                  ? null
+                  : () async {
+                      final target = await showDialog<double>(
+                        context: context,
+                        builder: (_) => StockAdjustmentDialog(
+                          productName: b.productName,
+                          unit: b.unit,
+                          currentQuantity: b.currentQuantity,
+                        ),
+                      );
+                      if (target != null && context.mounted) {
+                        await saveAction(
+                          context,
+                          c,
+                          (token) => c.api.adjustStock(
+                            token: token,
+                            productId: b.productId,
+                            targetQuantity: target,
+                          ),
+                        );
+                      }
+                    },
             ),
           ),
         ),
       ],
-      onChanged: onChanged,
     );
   }
 }
 
-class DispatchSummaryCard extends StatelessWidget {
-  const DispatchSummaryCard({super.key, required this.item});
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key, required this.controller});
+  final AppController controller;
+  @override
+  State<HistoryPage> createState() => _HistoryState();
+}
 
-  final DispatchRecord item;
+class _HistoryState extends State<HistoryPage> {
+  String query = '';
+  List<Bill>? searchResults;
+  bool searching = false;
+  String? searchCompany;
+  Future<void> search() async {
+    if (query.trim().length < 2 || searching) return;
+    final requested = query, company = widget.controller.selectedCompanyId;
+    setState(() => searching = true);
+    try {
+      final results = await widget.controller.searchBills(requested);
+      if (mounted &&
+          query == requested &&
+          company == widget.controller.selectedCompanyId) {
+        setState(() => searchResults = results);
+      }
+    } catch (_) {
+      if (mounted) toast(context, 'Could not search. Try again.');
+    } finally {
+      if (mounted) setState(() => searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.local_shipping_outlined, color: appPurple),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  item.documentNumber ?? item.fileName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
+    final c = widget.controller;
+    if (searchCompany != c.selectedCompanyId) {
+      searchResults = null;
+      searchCompany = c.selectedCompanyId;
+    }
+    final bills = (searchResults ?? c.data!.bills)
+        .where(
+          (b) =>
+              billMatches(b, c.selectedCompanyId) &&
+              '${b.draft?.documentNumber ?? ''} ${b.draft?.consigneeName ?? ''} ${b.draft?.vehicleNumber ?? ''}'
+                  .toLowerCase()
+                  .contains(query.toLowerCase()),
+        )
+        .toList();
+    final totals = c.data!.todayTotals.where((r) =>
+        c.selectedCompanyId == null || r.companyId == c.selectedCompanyId);
+    final billCount = totals.fold<int>(0, (sum, r) => sum + r.billCount);
+    final total = totals.fold<double>(0, (sum, r) => sum + r.totalAmount);
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        Text(
+          '$billCount bills saved today · ${money(total)}',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          decoration: const InputDecoration(
+            hintText: 'Find bill or vehicle',
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (v) => setState(() {
+            query = v;
+            searchResults = null;
+          }),
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => search(),
+        ),
+        if (query.trim().length >= 2)
+          TextButton(
+              onPressed: searching ? null : search,
+              child: Text(searching ? 'Searching…' : 'Search all saved bills')),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: c.busy ? null : () => upload(context, c),
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Upload bill'),
+        ),
+        ...bills.map(
+          (b) => Card(
+            child: ListTile(
+              title: Text(b.draft?.documentNumber ?? b.fileName),
+              subtitle: Text(
+                b.draft?.consigneeName ?? b.companyName ?? 'Check bill',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Text(
+                b.draft?.workflowStatus == 'cancelled'
+                    ? 'Cancelled'
+                    : money(b.draft?.totalAmount),
+              ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => SimpleBillPage(controller: c, billId: b.id),
                 ),
               ),
-              StatusPill(text: item.workflowStatus),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            item.companyName ?? 'Company not assigned',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            [
-              if (item.consigneeName != null) item.consigneeName!,
-              if (item.destination != null) item.destination!,
-            ].join(' · '),
-            style: muted(context),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.pin_outlined, size: 18),
-              const SizedBox(width: 6),
-              Text(item.vehicleNumber ?? 'Vehicle not parsed'),
-              const Spacer(),
-              StatusPill(text: item.stockStatus),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-class BillsScreen extends StatefulWidget {
-  const BillsScreen({super.key, required this.controller});
-  final AppController controller;
-
-  @override
-  State<BillsScreen> createState() => _BillsScreenState();
-}
-
-class _BillsScreenState extends State<BillsScreen> {
-  String query = '';
-  String? selectedCompanyId;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = widget.controller.data;
-    final source = data?.bills ?? const <Bill>[];
-    final companies = data?.stock.companies ?? const <StockCompany>[];
-    final q = query.trim().toLowerCase();
-    final bills = source.where((bill) {
-      if (selectedCompanyId != null && bill.companyId != selectedCompanyId) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      return [
-        bill.fileName,
-        bill.senderName,
-        bill.draft?.supplierName,
-        bill.draft?.documentNumber,
-        bill.draft?.vehicleNumber,
-        bill.draft?.destination,
-      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
-    }).toList();
-    return RefreshIndicator(
-      onRefresh: widget.controller.refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-        children: [
-          AppHeader(
-            title: 'Bills',
-            subtitle: '${source.length} PDFs from WhatsApp',
-            onRefresh: widget.controller.refresh,
-          ),
-          const SizedBox(height: 18),
-          TextField(
-            onChanged: (value) => setState(() => query = value),
-            decoration: const InputDecoration(
-              hintText: 'Search company, bill, vehicle...',
-              prefixIcon: Icon(Icons.search_rounded),
             ),
           ),
-          const SizedBox(height: 10),
-          CompanyFilterField(
-            companies: companies,
-            selectedCompanyId: selectedCompanyId,
-            onChanged: (value) => setState(() => selectedCompanyId = value),
+        ),
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'Recent bills · Original PDFs are kept for 24 hours. Bill records stay saved.',
+            style: TextStyle(fontSize: 12),
           ),
-          const SizedBox(height: 16),
-          if (bills.isEmpty)
-            const EmptyState(
-              icon: Icons.search_off_rounded,
-              title: 'No matching bills',
-              body: 'Try a different search.',
-            )
-          else
-            ...bills.map((bill) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: BillTile(
-                bill: bill,
-                onTap: () => openBill(context, widget.controller, bill.id),
-              ),
-            )),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-Future<void> openBill(
-    BuildContext context, AppController controller, String billId) async {
-  await Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => BillDetailScreen(controller: controller, billId: billId),
-    ),
-  );
+String requestUuid() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  final s = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return '${s.substring(0, 8)}-${s.substring(8, 12)}-${s.substring(12, 16)}-${s.substring(16, 20)}-${s.substring(20)}';
 }
 
-class BillDetailScreen extends StatelessWidget {
-  const BillDetailScreen({
+class SimpleBillPage extends StatefulWidget {
+  const SimpleBillPage({
     super.key,
     required this.controller,
     required this.billId,
   });
-
   final AppController controller;
   final String billId;
-
-  Bill? findBill() {
-    for (final bill in controller.data?.bills ?? const <Bill>[]) {
-      if (bill.id == billId) return bill;
-    }
-    return null;
-  }
-
-  Future<void> action(
-      BuildContext context, Future<void> Function(String) request) async {
-    final message = await controller.runMutation(request);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message ?? 'Updated successfully')),
-    );
-  }
-
-  Future<void> openPdf(BuildContext context, Bill bill) async {
-    final message = await controller.runMutation((token) async {
-      final url = await controller.api.mediaUrl(token, bill.id);
-      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (!opened) throw Exception('Unable to open PDF');
-    });
-    if (message != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final bill = findBill();
-        if (bill == null) {
-          return const Scaffold(body: Center(child: Text('Bill unavailable')));
-        }
-        final draft = bill.draft;
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('Bill details')),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
-            children: [
-              SurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(draft?.supplierName ?? bill.senderName ?? 'WhatsApp bill',
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 6),
-                    Text(bill.fileName),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        StatusPill(text: bill.processingStatus),
-                        if (draft != null) StatusPill(text: draft.workflowStatus),
-                        if (draft != null) StatusPill(text: draft.stockStatus),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text('${dateTime(bill.receivedAt)} · ${bill.senderPhoneMasked}',
-                        style: muted(context)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (bill.storageAvailable)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: controller.busy ? null : () => openPdf(context, bill),
-                        icon: const Icon(Icons.picture_as_pdf_outlined),
-                        label: const Text('Open PDF'),
-                      ),
-                    ),
-                  if (bill.storageAvailable) const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: controller.busy
-                          ? null
-                          : () => action(context,
-                              (token) => controller.api.parseBill(token, bill.id)),
-                      icon: const Icon(Icons.document_scanner_outlined),
-                      label: Text(draft == null ? 'Parse bill' : 'Parse again'),
-                    ),
-                  ),
-                ],
-              ),
-              if (draft == null) ...[
-                const SizedBox(height: 22),
-                const EmptyState(
-                  icon: Icons.document_scanner_outlined,
-                  title: 'No parsed data yet',
-                  body: 'Run Parse bill to extract structured data.',
-                ),
-              ] else ...[
-                if (draft.canApprove) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: controller.busy
-                          ? null
-                          : () => action(context,
-                              (token) => controller.api.approveBill(token, bill.id)),
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Approve parsed data'),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                const SectionTitle(title: 'Document'),
-                const SizedBox(height: 10),
-                DetailsGrid(items: [
-                  ('Document no.', draft.documentNumber),
-                  ('Date', draft.documentDate),
-                  ('e-Way bill', draft.ewayBillNumber),
-                  ('Vehicle', draft.vehicleNumber),
-                  ('Destination', draft.destination),
-                  ('Supplier GSTIN', draft.supplierGstin),
-                  ('Consignee', draft.consigneeName),
-                  ('Consignee GSTIN', draft.consigneeGstin),
-                  ('Buyer', draft.buyerName),
-                  ('Buyer GSTIN', draft.buyerGstin),
-                ]),
-                if (draft.consigneeAddress != null) ...[
-                  const SizedBox(height: 10),
-                  SurfaceCard(
-                    child: LabeledText(
-                      label: 'Consignee address',
-                      value: draft.consigneeAddress!,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                const SectionTitle(title: 'Products'),
-                const SizedBox(height: 10),
-                if (draft.items.isEmpty)
-                  const EmptyState(
-                    icon: Icons.inventory_2_outlined,
-                    title: 'No product lines',
-                    body: 'The parser did not return product rows.',
-                  )
-                else
-                  ...draft.items.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: SurfaceCard(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.inventory_2_outlined, color: appPurple),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.description,
-                                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 4),
-                                Text(
-                                  [
-                                    if (item.hsnSac != null) 'HSN ${item.hsnSac}',
-                                    if (item.quantity != null)
-                                      '${qty(item.quantity!)} ${item.unit ?? ''}',
-                                    if (item.rate != null) 'Rate ${money(item.rate)}',
-                                  ].join(' · '),
-                                  style: muted(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(money(item.amount),
-                              style: const TextStyle(fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                    ),
-                  )),
-                const SizedBox(height: 8),
-                SurfaceCard(
-                  child: Column(
-                    children: [
-                      AmountRow(label: 'Taxable', value: draft.taxableAmount),
-                      AmountRow(label: 'CGST', value: draft.cgstAmount),
-                      AmountRow(label: 'SGST', value: draft.sgstAmount),
-                      const Divider(height: 24),
-                      AmountRow(label: 'Total', value: draft.totalAmount, strong: true),
-                    ],
-                  ),
-                ),
-                if (draft.missingFields.isNotEmpty ||
-                    draft.parseError != null ||
-                    draft.stockError != null) ...[
-                  const SizedBox(height: 14),
-                  ErrorBox(message: [
-                    if (draft.missingFields.isNotEmpty)
-                      'Missing: ${draft.missingFields.join(', ')}',
-                    if (draft.parseError != null) draft.parseError!,
-                    if (draft.stockError != null) draft.stockError!,
-                  ].join('\\n')),
-                ],
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
+  State<SimpleBillPage> createState() => _BillPageState();
 }
 
-class DispatchScreen extends StatefulWidget {
-  const DispatchScreen({super.key, required this.controller});
-  final AppController controller;
-
-  @override
-  State<DispatchScreen> createState() => _DispatchScreenState();
-}
-
-class _DispatchScreenState extends State<DispatchScreen> {
-  String query = '';
-  String? selectedCompanyId;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = widget.controller.data;
-    final source = data?.dispatches ?? const <DispatchRecord>[];
-    final companies = data?.stock.companies ?? const <StockCompany>[];
-    final q = query.toLowerCase().trim();
-    final rows = source.where((item) {
-      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      return [
-        item.documentNumber,
-        item.companyName,
-        item.destination,
-        item.consigneeName,
-        item.vehicleNumber,
-      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
-    }).toList();
-
-    return RefreshIndicator(
-      onRefresh: widget.controller.refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-        children: [
-          AppHeader(
-            title: 'Dispatch',
-            subtitle: '${source.length} parsed dispatch records',
-            onRefresh: widget.controller.refresh,
-          ),
-          const SizedBox(height: 18),
-          TextField(
-            onChanged: (value) => setState(() => query = value),
-            decoration: const InputDecoration(
-              hintText: 'Search vehicle, company, destination...',
-              prefixIcon: Icon(Icons.search_rounded),
-            ),
-          ),
-          const SizedBox(height: 10),
-          CompanyFilterField(
-            companies: companies,
-            selectedCompanyId: selectedCompanyId,
-            onChanged: (value) => setState(() => selectedCompanyId = value),
-          ),
-          const SizedBox(height: 16),
-          if (rows.isEmpty)
-            const EmptyState(
-              icon: Icons.local_shipping_outlined,
-              title: 'No dispatch records',
-              body: 'Parsed bills with dispatch data will appear here.',
-            )
-          else
-            ...rows.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: DispatchSummaryCard(item: item),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class StockScreen extends StatefulWidget {
-  const StockScreen({super.key, required this.controller});
-  final AppController controller;
-
-  @override
-  State<StockScreen> createState() => _StockScreenState();
-}
-
-class _StockScreenState extends State<StockScreen> {
-  String query = '';
-  String? selectedCompanyId;
-
-  Future<void> adjust(StockBalance balance) async {
-    final target = await showDialog<double>(
-      context: context,
-      builder: (context) => StockAdjustmentDialog(
-        productName: balance.productName,
-        unit: balance.unit,
-        currentQuantity: balance.currentQuantity,
-      ),
-    );
-    if (target == null || !mounted) return;
-
-    final message = await widget.controller.runMutation(
-      (token) => widget.controller.api.adjustStock(
-        token: token,
-        productId: balance.productId,
-        targetQuantity: target,
-      ),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message ?? 'Stock updated')));
-    }
-  }
-
-  Future<void> addStock() async {
-    final stock = widget.controller.data?.stock;
-    if (stock == null) return;
-    final input = await showModalBottomSheet<OpeningStockInput>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => OpeningStockSheet(companies: stock.companies),
-    );
-    if (input == null || !mounted) return;
-
-    final message = await widget.controller.runMutation(
-      (token) => widget.controller.api.addOpeningStock(
-        token: token,
-        companyId: input.companyId,
-        companyName: input.companyName,
-        companyGstin: input.companyGstin,
-        productName: input.productName,
-        unit: input.unit,
-        hsnSac: input.hsnSac,
-        quantity: input.quantity,
-        allowSimilarCompany: input.allowSimilarCompany,
-        allowSimilarProduct: input.allowSimilarProduct,
-      ),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message ?? 'Stock balance saved')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stock = widget.controller.data?.stock ??
-        const StockData(companies: [], balances: []);
-    final q = query.toLowerCase().trim();
-    final balances = stock.balances.where((item) {
-      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      return [
-        item.companyName,
-        item.productName,
-        item.hsnSac,
-        item.companyGstin,
-      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
-    }).toList();
-    final history = stock.history.where((item) {
-      if (selectedCompanyId != null && item.companyId != selectedCompanyId) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      return [
-        item.companyName,
-        item.productName,
-        item.documentNumber,
-      ].whereType<String>().any((value) => value.toLowerCase().contains(q));
-    }).toList();
-
-    String movementTitle(StockMovement item) {
-      switch (item.movementType) {
-        case 'opening':
-          return 'Opening stock';
-        case 'stock_in':
-          return 'Stock in';
-        case 'dispatch_inferred':
-          return 'Dispatch availability';
-        case 'stock_out':
-          return 'Outgoing';
-        case 'correction':
-          return 'Bill correction';
-        case 'reversal':
-          return 'Bill reversal';
-        case 'adjustment':
-          return 'Physical adjustment';
-        default:
-          return item.movementType.replaceAll('_', ' ');
-      }
-    }
-
-    return RefreshIndicator(
-      onRefresh: widget.controller.refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-        children: [
-          AppHeader(
-            title: 'Stock',
-            subtitle: '${stock.balances.length} configured products',
-            onRefresh: widget.controller.refresh,
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: widget.controller.busy ? null : addStock,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Set current stock'),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            onChanged: (value) => setState(() => query = value),
-            decoration: const InputDecoration(
-              hintText: 'Search product or company...',
-              prefixIcon: Icon(Icons.search_rounded),
-            ),
-          ),
-          const SizedBox(height: 10),
-          CompanyFilterField(
-            companies: stock.companies,
-            selectedCompanyId: selectedCompanyId,
-            onChanged: (value) => setState(() => selectedCompanyId = value),
-          ),
-          const SizedBox(height: 16),
-          if (balances.isEmpty)
-            const EmptyState(
-              icon: Icons.inventory_2_outlined,
-              title: 'No stock products',
-              body: 'Verified bills create products automatically. You can also add stock manually.',
-            )
-          else
-            ...balances.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: SurfaceCard(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: appPurple.withValues(alpha: .1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.inventory_2_outlined, color: appPurple),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.productName,
-                              style: const TextStyle(fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${item.companyName}${item.hsnSac == null ? '' : ' · HSN ${item.hsnSac}'}',
-                            style: muted(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          item.balanceKnown
-                              ? '${qty(item.currentQuantity)} ${item.unit}'
-                              : 'Not set',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 16),
-                        ),
-                        if (!item.balanceKnown)
-                          Text(
-                            'Stock count not added',
-                            style: muted(context),
-                          ),
-                        TextButton(
-                          onPressed: widget.controller.busy ? null : () => adjust(item),
-                          child: const Text('Adjust'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            )),
-          const SizedBox(height: 18),
-          const SectionTitle(title: 'Recent activity'),
-          const SizedBox(height: 8),
-          if (history.isEmpty)
-            const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No stock activity yet',
-              body: 'Verified outgoing bills and stock additions will appear here.',
-            )
-          else
-            ...history.take(30).map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SurfaceCard(
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: appPurple.withValues(alpha: .1),
-                      child: Icon(
-                        item.quantityDelta < 0
-                            ? Icons.north_east_rounded
-                            : Icons.south_west_rounded,
-                        color: appPurple,
-                        size: 19,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.productName,
-                              style: const TextStyle(fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${movementTitle(item)}${item.documentNumber == null ? '' : ' · ${item.documentNumber}'}',
-                            style: muted(context),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            DateFormat('d MMM, h:mm a').format(item.createdAt.toLocal()),
-                            style: muted(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          item.movementType == 'dispatch_inferred'
-                              ? '${qty(item.quantityDelta.abs())} ${item.unit} AVAILABLE'
-                              : '${qty(item.quantityDelta.abs())} ${item.unit} ${item.quantityDelta < 0 ? 'OUT' : 'IN'}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 15),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.balanceAfter == null
-                              ? 'Stock count not set'
-                              : 'Balance ${qty(item.balanceAfter!)}',
-                          style: muted(context),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            )),
-        ],
-      ),
-    );
-  }
-}
-
-class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.controller});
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = controller.data;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-      children: [
-        const AppHeader(
-          title: 'More',
-          subtitle: 'Companies, messages and settings',
-        ),
-        const SizedBox(height: 18),
-        MenuTile(
-          icon: Icons.business_outlined,
-          title: 'Companies',
-          subtitle: '${data?.stock.companies.length ?? 0} configured companies',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CompaniesScreen(controller: controller),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        MenuTile(
-          icon: Icons.chat_bubble_outline_rounded,
-          title: 'WhatsApp conversations',
-          subtitle: '${data?.conversations.length ?? 0} conversations',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ConversationsScreen(controller: controller),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (data != null)
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Connection',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-                const SizedBox(height: 10),
-                InfoRow(label: 'API',
-                    value: data.runtime.healthy ? 'Healthy' : 'Check config'),
-                InfoRow(label: 'Last synced', value: dateTime(data.generatedAt)),
-                InfoRow(
-                  label: 'Session expires',
-                  value: data.sessionExpiresAt == null
-                      ? 'Unknown'
-                      : dateTime(data.sessionExpiresAt!),
-                ),
-                InfoRow(
-                  label: 'Automation',
-                  value: data.runtime.automationEnabled
-                      ? (data.runtime.automationReady ? 'Ready' : 'Not ready')
-                      : 'Disabled',
-                ),
-              ],
-            ),
-          ),
-        const SizedBox(height: 10),
-        MenuTile(
-          icon: Icons.logout_rounded,
-          title: 'Sign out',
-          subtitle: 'Remove the saved mobile session',
-          onTap: controller.logout,
-        ),
-      ],
-    );
-  }
-}
-
-class ConversationsScreen extends StatelessWidget {
-  const ConversationsScreen({super.key, required this.controller});
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final items = controller.data?.conversations ?? const <Conversation>[];
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('WhatsApp'),
-            actions: [
-              IconButton(onPressed: controller.refresh,
-                  icon: const Icon(Icons.refresh_rounded)),
-            ],
-          ),
-          body: items.isEmpty
-              ? const EmptyState(
-                  icon: Icons.chat_bubble_outline,
-                  title: 'No conversations',
-                  body: 'Incoming WhatsApp messages will appear here.',
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(14),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final latest = item.timeline.isEmpty ? null : item.timeline.last;
-                    final preview = latest == null
-                        ? 'Message'
-                        : latest.inbound
-                            ? (latest.textBody ??
-                                latest.fileName ??
-                                latest.messageType ??
-                                'Message')
-                            : (latest.body ?? 'Message');
-                    return SurfaceCard(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ConversationScreen(
-                            controller: controller,
-                            conversationKey: item.key,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: appPurple.withValues(alpha: .12),
-                            child: Text(
-                              (item.senderName ?? 'W').substring(0, 1).toUpperCase(),
-                              style: const TextStyle(
-                                  color: appPurple, fontWeight: FontWeight.w900),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.senderName ?? 'WhatsApp sender',
-                                    style: const TextStyle(fontWeight: FontWeight.w900)),
-                                const SizedBox(height: 3),
-                                Text(preview,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: muted(context)),
-                                const SizedBox(height: 3),
-                                Text(item.senderPhoneMasked, style: muted(context)),
-                              ],
-                            ),
-                          ),
-                          Text(DateFormat('h:mm a')
-                              .format(item.latestReceivedAt.toLocal()),
-                              style: muted(context)),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        );
-      },
-    );
-  }
-}
-
-class ConversationScreen extends StatefulWidget {
-  const ConversationScreen({
-    super.key,
-    required this.controller,
-    required this.conversationKey,
-  });
-
-  final AppController controller;
-  final String conversationKey;
-
-  @override
-  State<ConversationScreen> createState() => _ConversationScreenState();
-}
-
-class _ConversationScreenState extends State<ConversationScreen> {
-  final reply = TextEditingController();
-
-  @override
-  void dispose() {
-    reply.dispose();
-    super.dispose();
-  }
-
-  Conversation? conversation() {
-    for (final item in widget.controller.data?.conversations ?? const <Conversation>[]) {
-      if (item.key == widget.conversationKey) return item;
-    }
-    return null;
-  }
-
-  Future<void> send(Conversation item) async {
-    final messageId = item.latestInboundMessageId;
-    final body = reply.text.trim();
-    if (messageId == null || body.isEmpty) return;
-    final error = await widget.controller.runMutation(
-      (token) => widget.controller.api.sendReply(
-        token: token,
-        messageId: messageId,
-        body: body,
-      ),
-    );
-    if (!mounted) return;
-    if (error == null) reply.clear();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(error ?? 'Reply sent')));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        final item = conversation();
-        if (item == null) {
-          return const Scaffold(body: Center(child: Text('Conversation unavailable')));
-        }
-        return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.senderName ?? 'WhatsApp sender'),
-                Text(item.senderPhoneMasked,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
-              ],
-            ),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-                  itemCount: item.timeline.length,
-                  itemBuilder: (context, index) {
-                    final event =
-                        item.timeline[item.timeline.length - 1 - index];
-                    return Align(
-                      alignment: event.inbound
-                          ? Alignment.centerLeft
-                          : Alignment.centerRight,
-                      child: Container(
-                        constraints: BoxConstraints(
-                            maxWidth: MediaQuery.sizeOf(context).width * .78),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: event.inbound
-                              ? Theme.of(context).colorScheme.surfaceContainerHigh
-                              : appPurple.withValues(alpha: .14),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (event.inbound && event.fileName != null)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                                  const SizedBox(width: 6),
-                                  Flexible(child: Text(event.fileName!)),
-                                ],
-                              )
-                            else
-                              Text(event.inbound
-                                  ? (event.textBody ?? event.messageType ?? 'Message')
-                                  : (event.body ?? 'Message')),
-                            const SizedBox(height: 5),
-                            Text(
-                              DateFormat('h:mm a').format(event.time.toLocal()) +
-                                  (!event.inbound && event.status != null
-                                      ? ' · ${event.status}'
-                                      : ''),
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                            if (event.errorMessage != null) ...[
-                              const SizedBox(height: 4),
-                              Text(event.errorMessage!,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context).colorScheme.error)),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  child: item.canReply
-                      ? Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: reply,
-                                minLines: 1,
-                                maxLines: 4,
-                                maxLength: 2000,
-                                decoration: const InputDecoration(
-                                  hintText: 'Reply on WhatsApp...',
-                                  counterText: '',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton.filled(
-                              onPressed: widget.controller.busy ? null : () => send(item),
-                              icon: const Icon(Icons.send_rounded),
-                            ),
-                          ],
-                        )
-                      : SurfaceCard(
-                          child: Text(
-                            'Free-form reply unavailable: the 24-hour WhatsApp service window is closed.',
-                            textAlign: TextAlign.center,
-                            style: muted(context),
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class StockAdjustmentDialog extends StatefulWidget {
-  const StockAdjustmentDialog({
-    super.key,
-    required this.productName,
-    required this.unit,
-    required this.currentQuantity,
-  });
-
-  final String productName;
-  final String unit;
-  final double currentQuantity;
-
-  @override
-  State<StockAdjustmentDialog> createState() => _StockAdjustmentDialogState();
-}
-
-class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
-  late final TextEditingController quantityController;
-
+class _BillPageState extends State<SimpleBillPage> {
+  AppController get controller => widget.controller;
+  String get billId => widget.billId;
   @override
   void initState() {
     super.initState();
-    quantityController =
-        TextEditingController(text: qty(widget.currentQuantity));
+    controller.activeBillId = billId;
+    unawaited(controller.loadBill(billId));
   }
 
   @override
   void dispose() {
-    quantityController.dispose();
+    if (controller.activeBillId == billId) controller.activeBillId = null;
     super.dispose();
   }
 
-  void submit() {
-    final value = double.tryParse(quantityController.text.trim());
-    if (value == null || value < 0) return;
-    Navigator.of(context).pop(value);
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Adjust ${widget.productName}'),
-      content: TextField(
-        controller: quantityController,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) => submit(),
-        decoration: InputDecoration(
-          labelText: 'Current physical quantity (${widget.unit})',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: submit,
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-class OpeningStockInput {
-  const OpeningStockInput({
-    this.companyId,
-    this.companyName,
-    this.companyGstin,
-    required this.productName,
-    required this.unit,
-    this.hsnSac,
-    required this.quantity,
-    required this.allowSimilarCompany,
-    required this.allowSimilarProduct,
-  });
-
-  final String? companyId;
-  final String? companyName;
-  final String? companyGstin;
-  final String productName;
-  final String unit;
-  final String? hsnSac;
-  final double quantity;
-  final bool allowSimilarCompany;
-  final bool allowSimilarProduct;
-}
-
-class OpeningStockSheet extends StatefulWidget {
-  const OpeningStockSheet({super.key, required this.companies});
-  final List<StockCompany> companies;
-
-  @override
-  State<OpeningStockSheet> createState() => _OpeningStockSheetState();
-}
-
-class _OpeningStockSheetState extends State<OpeningStockSheet> {
-  String? companyId;
-  final companyName = TextEditingController();
-  final gstin = TextEditingController();
-  final product = TextEditingController();
-  final hsn = TextEditingController();
-  final quantityController = TextEditingController();
-  String unit = 'NOS';
-  bool allowCompany = false;
-  bool allowProduct = false;
-
-  @override
-  void dispose() {
-    companyName.dispose();
-    gstin.dispose();
-    product.dispose();
-    hsn.dispose();
-    quantityController.dispose();
-    super.dispose();
-  }
-
-  void submit() {
-    final amount = double.tryParse(quantityController.text.trim());
-    if (product.text.trim().isEmpty || amount == null || amount <= 0) return;
-    if (companyId == null &&
-        (companyName.text.trim().isEmpty || gstin.text.trim().isEmpty)) {
-      return;
-    }
-    Navigator.pop(
-      context,
-      OpeningStockInput(
-        companyId: companyId,
-        companyName: companyId == null ? companyName.text.trim() : null,
-        companyGstin: companyId == null ? gstin.text.trim() : null,
-        productName: product.text.trim(),
-        unit: unit,
-        hsnSac: hsn.text.trim().isEmpty ? null : hsn.text.trim(),
-        quantity: amount,
-        allowSimilarCompany: allowCompany,
-        allowSimilarProduct: allowProduct,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(18, 0, 18, 18 + inset),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Add stock',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String?>(
-              initialValue: companyId,
-              decoration: const InputDecoration(labelText: 'Existing company'),
-              items: [
-                const DropdownMenuItem<String?>(
-                    value: null, child: Text('Create new company')),
-                ...widget.companies.map((company) => DropdownMenuItem<String?>(
-                      value: company.id,
-                      child: Text(company.name),
-                    )),
-              ],
-              onChanged: (value) => setState(() => companyId = value),
-            ),
-            if (companyId == null) ...[
-              const SizedBox(height: 10),
-              TextField(controller: companyName,
-                  decoration: const InputDecoration(labelText: 'Company name')),
-              const SizedBox(height: 10),
-              TextField(controller: gstin,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(labelText: 'Company GSTIN')),
-            ],
-            const SizedBox(height: 10),
-            TextField(controller: product,
-                decoration: const InputDecoration(labelText: 'Product name')),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: unit,
-                    decoration: const InputDecoration(labelText: 'Unit'),
-                    items: const ['NOS', 'PCS', 'SET', 'BOX']
-                        .map((item) =>
-                            DropdownMenuItem(value: item, child: Text(item)))
-                        .toList(),
-                    onChanged: (value) => setState(() => unit = value ?? 'NOS'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(controller: hsn,
-                      decoration: const InputDecoration(labelText: 'HSN / SAC')),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: quantityController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Current stock'),
-            ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: allowCompany,
-              onChanged: (value) => setState(() => allowCompany = value ?? false),
-              title: const Text('Similar company is genuinely different'),
-            ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: allowProduct,
-              onChanged: (value) => setState(() => allowProduct = value ?? false),
-              title: const Text('Similar product is genuinely different'),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                  onPressed: submit, child: const Text('Save stock')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class AppHeader extends StatelessWidget {
-  const AppHeader({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    this.healthy,
-    this.onRefresh,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool? healthy;
-  final VoidCallback? onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: appPurple.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(Icons.solar_power_rounded, color: appPurple),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -.6)),
-              Row(
-                children: [
-                  if (healthy != null) ...[
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: healthy! ? const Color(0xFF168966) : Colors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                  ],
-                  Flexible(child: Text(subtitle, style: muted(context))),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (onRefresh != null)
-          IconButton.filledTonal(
-              onPressed: onRefresh, icon: const Icon(Icons.refresh_rounded)),
-      ],
-    );
-  }
-}
-
-class MetricCard extends StatelessWidget {
-  const MetricCard({
-    super.key,
-    required this.width,
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final double width;
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: SurfaceCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: appPurple),
-            const SizedBox(height: 15),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 29, fontWeight: FontWeight.w900, letterSpacing: -1)),
-            const SizedBox(height: 3),
-            Text(label, style: muted(context)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DailyChart extends StatelessWidget {
-  const DailyChart({super.key, required this.items});
-  final List<DailyBillCount> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxCount = items.fold<int>(
-        1, (max, item) => item.count > max ? item.count : max);
-    return SurfaceCard(
-      child: SizedBox(
-        height: 190,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: items.map((item) {
-            final ratio = item.count / maxCount;
-            return Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(item.count.toString(),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 110 * ratio + 8,
-                    width: 20,
-                    decoration: BoxDecoration(
-                      color: appPurple,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(item.label, style: muted(context)),
-                ],
-              ),
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          final bill = controller.billById(billId);
+          if (bill == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Bill')),
+              body: Center(
+                  child: TextButton(
+                      onPressed: () => controller.loadBill(billId),
+                      child: Text(controller.error ?? 'Loading bill…'))),
             );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-class BillTile extends StatelessWidget {
-  const BillTile({super.key, required this.bill, required this.onTap});
-  final Bill bill;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final draft = bill.draft;
-    return SurfaceCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: appPurple.withValues(alpha: .1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.picture_as_pdf_outlined, color: appPurple),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          }
+          final b = bill, d = b.draft, c = controller;
+          return Scaffold(
+            appBar: AppBar(title: Text(d?.documentNumber ?? 'Bill'), actions: [
+              if (d != null && d.workflowStatus != 'cancelled')
+                IconButton(
+                    tooltip: 'Edit bill number',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: c.busy
+                        ? null
+                        : () async {
+                            final value = await askText(context, 'Bill number',
+                                initial: d.documentNumber);
+                            if (value != null &&
+                                value.isNotEmpty &&
+                                context.mounted) {
+                              await saveAction(
+                                  context,
+                                  c,
+                                  (token) => c.api.editBill(token, {
+                                        'action': 'number',
+                                        'draftId': d.id,
+                                        'value': value,
+                                        'requestId': requestUuid()
+                                      }));
+                            }
+                          })
+            ]),
+            body: ListView(
+              padding: const EdgeInsets.all(18),
               children: [
-                Text(draft?.supplierName ?? bill.fileName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900)),
-                const SizedBox(height: 3),
                 Text(
-                  [
-                    if (draft?.documentNumber != null) draft!.documentNumber!,
-                    if (draft?.vehicleNumber != null) draft!.vehicleNumber!,
-                    dateTime(bill.receivedAt),
-                  ].join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: muted(context),
+                  d?.consigneeName ?? b.companyName ?? b.fileName,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  d?.workflowStatus == 'cancelled'
+                      ? 'Cancelled'
+                      : d?.stockStatus == 'applied'
+                          ? 'Saved · Stock updated'
+                          : 'Check bill · Stock not confirmed',
+                ),
+                if (d != null) ...[
+                  const SizedBox(height: 18),
+                  Text(
+                    money(d.totalAmount),
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(d.vehicleNumber ?? 'Add vehicle'),
+                    trailing: const Icon(Icons.edit_outlined),
+                    onTap: c.busy || d.workflowStatus == 'cancelled'
+                        ? null
+                        : () async {
+                            final value = await askText(
+                              context,
+                              'Vehicle',
+                              initial: d.vehicleNumber,
+                            );
+                            if (value != null &&
+                                value.isNotEmpty &&
+                                context.mounted) {
+                              await saveAction(
+                                context,
+                                c,
+                                (token) => c.api.editBill(token, {
+                                  'action': 'vehicle',
+                                  'requestId': requestUuid(),
+                                  'draftId': d.id,
+                                  'value': value,
+                                }),
+                              );
+                            }
+                          },
+                  ),
+                  if (d.destination != null) Text(d.destination!),
+                  const Divider(height: 30),
+                  ...d.items.map(
+                    (item) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(item.description),
+                      subtitle: Text(
+                        '${qty(item.quantity ?? 0)} ${item.unit ?? ''}',
+                      ),
+                      trailing: Text(money(item.amount)),
+                      onTap: c.busy || d.workflowStatus == 'cancelled'
+                          ? null
+                          : () async {
+                              final value = await askText(
+                                context,
+                                'Quantity (${item.unit ?? ''})',
+                                initial: item.quantity?.toString(),
+                                number: true,
+                              );
+                              final quantity = double.tryParse(value ?? '');
+                              if (quantity != null &&
+                                  quantity > 0 &&
+                                  context.mounted) {
+                                await saveAction(
+                                  context,
+                                  c,
+                                  (token) => c.api.editBill(token, {
+                                    'action': 'quantity',
+                                    'draftId': d.id,
+                                    'itemId': item.id,
+                                    'quantity': quantity,
+                                    'requestId': requestUuid(),
+                                  }),
+                                );
+                              }
+                            },
+                    ),
+                  ),
+                  if (d.canApprove)
+                    FilledButton(
+                      onPressed: c.busy
+                          ? null
+                          : () => saveAction(
+                                context,
+                                c,
+                                (token) => c.api.approveBill(token, b.id),
+                              ),
+                      child: const Text('Confirm bill'),
+                    ),
+                  if (d.workflowStatus != 'cancelled' &&
+                      d.stockStatus != 'applied')
+                    TextButton(
+                      onPressed: c.busy
+                          ? null
+                          : () => saveAction(
+                                context,
+                                c,
+                                (token) => c.api.parseBill(token, b.id),
+                              ),
+                      child: const Text('Check again'),
+                    ),
+                  if (d.workflowStatus != 'cancelled')
+                    TextButton(
+                      onPressed: c.busy
+                          ? null
+                          : () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Cancel bill?'),
+                                  content: const Text(
+                                    'Stock will be restored. The old record stays saved.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Keep bill'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Cancel bill'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && context.mounted) {
+                                await saveAction(
+                                  context,
+                                  c,
+                                  (token) => c.api.editBill(token, {
+                                    'action': 'cancel',
+                                    'requestId': requestUuid(),
+                                    'draftId': d.id,
+                                  }),
+                                );
+                              }
+                            },
+                      child: const Text('Cancel bill'),
+                    ),
+                ],
+                if (b.storageAvailable)
+                  TextButton.icon(
+                    onPressed: c.busy
+                        ? null
+                        : () => BillDetailScreen(
+                              controller: c,
+                              billId: b.id,
+                            ).openPdf(context, b),
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: const Text('Open PDF'),
+                  ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          StatusPill(text: draft?.workflowStatus ?? bill.processingStatus),
-        ],
-      ),
-    );
-  }
-}
-
-class SurfaceCard extends StatelessWidget {
-  const SurfaceCard({super.key, required this.child, this.onTap});
-  final Widget child;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: child,
-    );
-    if (onTap == null) return content;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: content,
-    );
-  }
-}
-
-class SectionTitle extends StatelessWidget {
-  const SectionTitle({super.key, required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Text(title,
-      style: const TextStyle(
-          fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -.4));
-}
-
-class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final good = const {
-      'recorded', 'approved', 'stored', 'verified',
-      'sent', 'delivered', 'read', 'adjusted'
-    }.contains(text);
-    final color = good ? const Color(0xFF168966) : appPurple;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(text.replaceAll('_', ' '),
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w700, fontSize: 10)),
-    );
-  }
-}
-
-class ErrorBox extends StatelessWidget {
-  const ErrorBox({super.key, required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Text(message),
+          );
+        },
       );
 }
-
-class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 20),
-        child: Column(
-          children: [
-            Icon(icon, size: 42, color: appPurple),
-            const SizedBox(height: 12),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 6),
-            Text(body, textAlign: TextAlign.center, style: muted(context)),
-          ],
-        ),
-      );
-}
-
-class StatusStrip extends StatelessWidget {
-  const StatusStrip({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.positive,
-  });
-
-  final String label;
-  final String value;
-  final bool positive;
-
-  @override
-  Widget build(BuildContext context) => SurfaceCard(
-        child: Row(
-          children: [
-            Icon(positive ? Icons.check_circle_outline : Icons.info_outline,
-                color: positive ? const Color(0xFF168966) : Colors.orange),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label)),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-          ],
-        ),
-      );
-}
-
-class DetailsGrid extends StatelessWidget {
-  const DetailsGrid({super.key, required this.items});
-  final List<(String, String?)> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (_, constraints) {
-        final width = (constraints.maxWidth - 10) / 2;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: items.map((item) => SizedBox(
-            width: width,
-            child: SurfaceCard(
-              child: LabeledText(label: item.$1, value: item.$2 ?? '—'),
-            ),
-          )).toList(),
-        );
-      },
-    );
-  }
-}
-
-class LabeledText extends StatelessWidget {
-  const LabeledText({super.key, required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: muted(context)),
-          const SizedBox(height: 5),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-        ],
-      );
-}
-
-class AmountRow extends StatelessWidget {
-  const AmountRow({
-    super.key,
-    required this.label,
-    required this.value,
-    this.strong = false,
-  });
-
-  final String label;
-  final double? value;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontWeight: strong ? FontWeight.w900 : FontWeight.w500)),
-          const Spacer(),
-          Text(money(value),
-              style: TextStyle(
-                  fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
-                  fontSize: strong ? 18 : 14)),
-        ],
-      );
-}
-
-class InfoRow extends StatelessWidget {
-  const InfoRow({super.key, required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          children: [
-            Expanded(child: Text(label, style: muted(context))),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-          ],
-        ),
-      );
-}
-
-class MenuTile extends StatelessWidget {
-  const MenuTile({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => SurfaceCard(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Icon(icon, color: appPurple),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 3),
-                  Text(subtitle, style: muted(context)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
-        ),
-      );
-}
-
-TextStyle muted(BuildContext context) => TextStyle(
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .58),
-      fontSize: 12,
-      fontWeight: FontWeight.w500,
-    );
-
-String dateTime(DateTime value) =>
-    DateFormat('dd MMM, h:mm a').format(value.toLocal());
-
-String money(double? value) {
-  if (value == null) return '—';
-  return NumberFormat.currency(
-          locale: 'en_IN', symbol: '₹', decimalDigits: 2)
-      .format(value);
-}
-
-String qty(double value) => value == value.roundToDouble()
-    ? value.toInt().toString()
-    : value.toStringAsFixed(3);

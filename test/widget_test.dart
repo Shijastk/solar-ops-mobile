@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -166,16 +165,15 @@ void main() {
     expect(data.runtime.healthy, isTrue);
     expect(data.dashboard.billsToday, 2);
     expect(data.bills.single.draft?.supplierName, 'Supplier Pvt Ltd');
-    expect(data.bills.single.companyId,
-        '44444444-4444-4444-8444-444444444444');
+    expect(data.bills.single.companyId, '44444444-4444-4444-8444-444444444444');
     expect(data.bills.single.draft?.items.single.quantity, 10);
     expect(data.stock.balances.single.currentQuantity, 42);
     expect(data.conversations.single.canReply, isTrue);
     expect(data.dispatches.single.vehicleNumber, 'KL11AA1234');
   });
 
-
-  test('company snapshot uses canonical company IDs and does not name-guess', () {
+  test('company snapshot uses canonical company IDs and does not name-guess',
+      () {
     final data = BootstrapData.fromJson(bootstrapJson);
     final company = data.stock.companies.single;
     final snapshot = CompanySnapshot.fromData(data, company);
@@ -196,8 +194,8 @@ void main() {
     bills[0] = bill;
 
     final unassignedData = BootstrapData.fromJson(payload);
-    final unassignedSnapshot =
-        CompanySnapshot.fromData(unassignedData, unassignedData.stock.companies.single);
+    final unassignedSnapshot = CompanySnapshot.fromData(
+        unassignedData, unassignedData.stock.companies.single);
 
     expect(unassignedSnapshot.bills, isEmpty);
   });
@@ -277,7 +275,6 @@ void main() {
     expect(result, 42);
   });
 
-
   testWidgets('company dropdown does not overflow on narrow phones',
       (tester) async {
     tester.view.physicalSize = const Size(320, 640);
@@ -287,8 +284,7 @@ void main() {
 
     const company = StockCompany(
       id: '44444444-4444-4444-8444-444444444444',
-      name:
-          'SAVITR SOLAR SOLUTIONS LIMITED KERALA DISTRIBUTION OPERATIONS',
+      name: 'SAVITR SOLAR SOLUTIONS LIMITED KERALA DISTRIBUTION OPERATIONS',
       gstin: '32AAAAA0000A1Z5',
     );
 
@@ -317,14 +313,12 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-
   testWidgets('WhatsApp conversation opens at the latest message',
       (tester) async {
     final payload =
         jsonDecode(jsonEncode(bootstrapJson)) as Map<String, dynamic>;
     final conversations = payload['conversations'] as List<dynamic>;
-    final conversation =
-        Map<String, dynamic>.from(conversations.single as Map);
+    final conversation = Map<String, dynamic>.from(conversations.single as Map);
     conversation['timeline'] = List.generate(30, (index) {
       final time = DateTime.utc(2026, 9, 25, 10)
           .add(Duration(minutes: index))
@@ -362,5 +356,4 @@ void main() {
     expect(find.text('message 29'), findsOneWidget);
     expect(find.text('message 0'), findsNothing);
   });
-
 }
