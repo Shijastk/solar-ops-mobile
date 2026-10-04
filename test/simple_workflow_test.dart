@@ -203,7 +203,7 @@ void main() {
     c.dispose();
   });
   testWidgets(
-      'three tabs and company switching filter trips, stock and history on narrow phones',
+      'three work pages and bottom company switching filter trips, stock and grouped history',
       (tester) async {
     tester.view.physicalSize = const Size(320, 740);
     tester.view.devicePixelRatio = 1;
@@ -229,7 +229,7 @@ void main() {
     expect(find.text('First panel'), findsNothing);
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
-    expect(find.text('INV-2'), findsOneWidget);
+    expect(find.textContaining('INV-2'), findsOneWidget);
     expect(find.textContaining('INV-1'), findsNothing);
     expect(tester.takeException(), isNull);
   });

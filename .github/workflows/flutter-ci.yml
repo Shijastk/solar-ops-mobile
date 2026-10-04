@@ -22,17 +22,8 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Format source for review
-        run: dart format lib test
-
-      - name: Upload formatted source
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-formatted-source
-          path: |
-            lib/
-            test/
-          retention-days: 3
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         run: flutter analyze
