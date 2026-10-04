@@ -719,7 +719,7 @@ class TripPage extends StatelessWidget {
                     child: const Text('Ready to dispatch'),
                   ),
                 if (t.status == 'ready' && !c.savingTrips.contains(t.id) && !c.failedTripRequests.containsKey(t.id))
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(16),
                     child:Text(t.entryMode=='manual'?'Dispatch recorded':'Ready to dispatch',textAlign:TextAlign.center),
                   ),
