@@ -660,13 +660,15 @@ class TripBill {
         companyGstin = _string(json['companyGstin']),
         number = _string(json['number']) ?? 'Bill',
         needsAttention = json['needsAttention'] == true,
-        duplicate = json['duplicate'] == true;
+        duplicate = json['duplicate'] == true,
+        cancelled = json['cancelled'] == true;
   final String messageId;
   final String? companyId;
   final String? companyGstin;
   final String number;
   final bool needsAttention;
   final bool duplicate;
+  final bool cancelled;
 }
 
 class DeliveryTrip {
@@ -703,6 +705,14 @@ class DeliveryTrip {
   final String? ownerName;
   final DateTime? createdAt;
   final List<TripItem> items;
+  bool get completed => raw['completedAt'] != null;
+  bool get removed => raw['removedAt'] != null;
+  String? get destination => _string(raw['destination']);
+  bool get visible => !removed &&
+      (items.isNotEmpty || bills.any((b) => !b.duplicate && !b.cancelled));
+  bool matches(String query) =>
+      '$name ${destination ?? ''} ${driverName ?? ''} ${vehicleNumber ?? ''} ${items.map((i) => i.name).join(' ')} ${bills.where((b) => !b.duplicate && !b.cancelled).map((b) => b.number).join(' ')}'
+          .toLowerCase().contains(query.trim().toLowerCase());
   DeliveryTrip withDriver(Driver d) =>
       DeliveryTrip.fromJson({...raw, "driverId": d.id, "driverName": d.name});
 }

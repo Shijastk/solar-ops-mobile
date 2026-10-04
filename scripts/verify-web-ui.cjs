@@ -26,13 +26,13 @@ const assert = require('node:assert/strict');
     }
     await expectLabel('Tirur');
     await screenshot('01-trips');
-    await page.mouse.click(195, 804);
+    await page.mouse.click(146, 804);
     await expectLabel('First panel');
     await screenshot('02-stock');
-    await page.mouse.click(325, 804);
+    await page.mouse.click(243, 804);
     await expectLabel('INV-1');
     await screenshot('03-history');
-    await page.mouse.click(100, 28);
+    await page.mouse.click(342, 804);
     await expectLabel('Second Solar Company Limited');
     // ListTile merges the company name and GSTIN into one accessible text span.
     await page.getByText('Second Solar Company Limited', { exact: false }).click();

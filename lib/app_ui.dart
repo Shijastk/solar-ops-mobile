@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'request_id.dart';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +8,7 @@ import 'models.dart';
 import 'api_client.dart';
 import 'support_ui.dart';
 import 'daily_forms.dart';
+import 'profile_ui.dart';
 export 'support_ui.dart';
 
 class SolarOpsRoot extends StatefulWidget {
@@ -333,18 +334,17 @@ class _ShellState extends State<AppShell> {
         ),
       );
     }
-    if (item == 'lock') {
-      final success = await c.setDeviceLock(!c.lockEnabled);
-      if (mounted) {
-        toast(
-          context,
-          success
-              ? (c.lockEnabled ? 'Device lock enabled' : 'Device lock off')
-              : c.error ?? 'Device lock unavailable',
-        );
+    if (item == 'profile') {
+      if (c.selectedCompanyId == null) await companyPicker();
+      if (mounted && c.selectedCompanyId != null) {
+        Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+          CompanyProfilePage(controller:c, companyId:c.selectedCompanyId!)));
       }
     }
-    if (item == 'logout') await c.logout();
+    if (item == 'settings') {
+      Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SettingsPage(controller:c)));
+    }
+
   }
 
   @override
@@ -359,40 +359,17 @@ class _ShellState extends State<AppShell> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: InkWell(
-          onTap: companyPicker,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  company,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(Icons.expand_more),
-            ],
-          ),
-        ),
+        title: Text(company,maxLines:1,overflow:TextOverflow.ellipsis,
+          style:const TextStyle(fontSize:18,fontWeight:FontWeight.w600)),
         actions: [
           PopupMenuButton<String>(
             onSelected: menu,
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'drivers', child: Text('Drivers')),
               const PopupMenuItem(value: 'chat', child: Text('WhatsApp')),
-              PopupMenuItem(
-                value: 'lock',
-                child: Text(
-                  c.lockEnabled
-                      ? 'Turn off device lock'
-                      : 'Use fingerprint / device PIN',
-                ),
-              ),
-              const PopupMenuItem(value: 'logout', child: Text('Sign out')),
+              const PopupMenuItem(value:'profile',child:Text('Company profile')),
+              const PopupMenuItem(value:'settings',child:Text('Settings')),
+
             ],
           ),
         ],
@@ -456,7 +433,9 @@ class _ShellState extends State<AppShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
+        onDestinationSelected: (i) {
+          if(i==3) { companyPicker(); } else { setState(() => index = i); }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.local_shipping_outlined),
@@ -470,6 +449,7 @@ class _ShellState extends State<AppShell> {
             icon: Icon(Icons.receipt_long_outlined),
             label: 'History',
           ),
+          NavigationDestination(icon:Icon(Icons.business_outlined),label:'Companies'),
         ],
       ),
     );
@@ -479,17 +459,19 @@ class _ShellState extends State<AppShell> {
 bool billMatches(Bill bill, String? companyId) =>
     companyId == null || bill.companyId == companyId;
 
-class TripsPage extends StatelessWidget {
+class TripsPage extends StatefulWidget {
   const TripsPage({super.key, required this.controller});
   final AppController controller;
   @override
+  State<TripsPage> createState()=>_TripsState();
+}
+class _TripsState extends State<TripsPage> {
+  String query='';
+  @override
   Widget build(BuildContext context) {
-    final c = controller, data = c.data!;
+    final c = widget.controller, data = c.data!;
     final trips = c.trips
-        .where((t) =>
-            t.entryMode == 'manual' ||
-            t.status == 'collecting' ||
-            t.bills.any((b) => !b.duplicate))
+        .where((t) => t.visible && t.matches(query))
         .where(
           (t) =>
               c.selectedCompanyId == null ||
@@ -522,7 +504,8 @@ class TripsPage extends StatelessWidget {
                   final preview = DeliveryTrip.fromJson({
                     'id': id,
                     'companyId': input.companyId,
-                    'name': input.place,
+                    'name': input.name.isEmpty ? input.place : input.name,
+                    'destination':input.place,
                     'driverId': input.driver.id,
                     'driverName': input.driver.name,
                     'status': 'ready',
@@ -540,6 +523,7 @@ class TripsPage extends StatelessWidget {
                     'requestId': id,
                     'companyId': input.companyId,
                     'destination': input.place,
+                    'name':input.name,
                     'driverId': input.driver.id,
                     'siteCount': input.sites,
                     'ownerName': input.owner,
@@ -586,11 +570,14 @@ class TripsPage extends StatelessWidget {
                   },
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Trip from bills')),
+        const SizedBox(height:12),
+        TextField(decoration:const InputDecoration(hintText:'Search recent trips',prefixIcon:Icon(Icons.search)),
+          onChanged:(v)=>setState(()=>query=v)),
         const SizedBox(height: 18),
         if (trips.isEmpty)
           const Padding(
             padding: EdgeInsets.all(32),
-            child: Text('No trips yet. Add a dispatch or start from bills.'),
+            child: Text('No matching trips. Add a dispatch or start from bills.'),
           ),
         ...trips.map(
           (t) => Card(
@@ -602,7 +589,7 @@ class TripsPage extends StatelessWidget {
               leading: const Icon(Icons.local_shipping_outlined),
               title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
-                '${t.driverName ?? 'Choose driver'} · ${t.entryMode == 'manual' ? '${t.siteCount} sites' : '${t.bills.where((b) => !b.duplicate).length} bills'}\n${c.savingTrips.contains(t.id) ? 'Saving…' : c.failedTripRequests.containsKey(t.id) ? 'Not saved · Retry' : t.entryMode == 'manual' ? 'Dispatch recorded' : t.bills.any((b) => b.needsAttention) ? 'Check bills' : t.status == 'ready' ? 'Ready to dispatch' : t.status == 'cancelled' ? 'Cancelled' : 'Add bills'}',
+                '${t.driverName ?? 'Choose driver'} · ${t.entryMode == 'manual' ? '${t.siteCount} sites' : '${t.bills.where((b) => !b.duplicate).length} bills'}\n${c.savingTrips.contains(t.id) ? 'Saving…' : c.failedTripRequests.containsKey(t.id) ? 'Not saved · Retry' : t.completed ? 'Completed' : t.entryMode == 'manual' ? 'Dispatch recorded' : t.bills.any((b) => b.needsAttention) ? 'Check bills' : t.status == 'ready' ? 'Ready to dispatch' : t.status == 'cancelled' ? 'Cancelled' : 'Add bills'}',
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
@@ -617,6 +604,15 @@ class TripsPage extends StatelessWidget {
       ],
     );
   }
+}
+
+Future<String?> editTripName(BuildContext context,String current) async {
+  final input=TextEditingController(text:current);
+  final result=await showDialog<String>(context:context,builder:(ctx)=>AlertDialog(
+    title:const Text('Trip name'),content:TextField(controller:input,autofocus:true,maxLength:160),
+    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Cancel')),
+      FilledButton(onPressed:()=>Navigator.pop(ctx,input.text.trim()),child:const Text('Save'))]));
+  input.dispose();return result;
 }
 
 class TripPage extends StatelessWidget {
@@ -644,7 +640,31 @@ class TripPage extends StatelessWidget {
           }
           final t = trip, c = controller;
           return Scaffold(
-            appBar: AppBar(title: Text(t.name)),
+            appBar: AppBar(title: Text(t.name), actions:[
+              PopupMenuButton<String>(enabled:!c.busy && !c.failedTripRequests.containsKey(t.id) && !t.removed,
+                onSelected:(action) async {
+                  if(action=='rename') {
+                    final name=await editTripName(context,t.name);
+                    if(name!=null && name.isNotEmpty) {
+                      final error=await c.tripAction(t,'rename',name:name);
+                      if(context.mounted) toast(context,error ?? 'Trip name saved');
+                    }
+                  } else {
+                    final confirmed=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+                      title:const Text('Delete trip?'),
+                      content:const Text('Remove this trip from the app. Bill and stock history will stay unchanged.'),
+                      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+                        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete'))]));
+                    if(confirmed==true) {
+                      final error=await c.tripAction(t,'remove');
+                      if(context.mounted) {
+                        if(error==null) { Navigator.pop(context); } else { toast(context,error); }
+                      }
+                    }
+                  }
+                },itemBuilder:(_)=>const [PopupMenuItem(value:'rename',child:Text('Edit trip name')),
+                  PopupMenuItem(value:'remove',child:Text('Delete trip'))])
+            ]),
             body: ListView(
               padding: const EdgeInsets.all(18),
               children: [
@@ -666,6 +686,7 @@ class TripPage extends StatelessWidget {
                             },
                       child: const Text('Retry save'))
                 ],
+                if(t.destination!=null && t.destination!=t.name) Text(t.destination!),
                 ...t.items.map((i) => ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(i.name),
@@ -724,7 +745,7 @@ class TripPage extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(t.vehicleNumber!),
                   ),
-                ...t.bills.where((b) => !b.duplicate).map(
+                ...t.bills.where((b) => !b.duplicate && !b.cancelled).map(
                       (b) => ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(
@@ -807,7 +828,7 @@ class TripPage extends StatelessWidget {
                     child: const Text('Choose existing bill'),
                   ),
                 ],
-                if (t.status != 'ready' && t.status != 'cancelled')
+                if (t.status != 'ready' && t.status != 'cancelled' && !c.savingTrips.contains(t.id) && !c.failedTripRequests.containsKey(t.id))
                   FilledButton(
                     onPressed: c.busy
                         ? null
@@ -821,7 +842,13 @@ class TripPage extends StatelessWidget {
                             }, success: 'Trip ready'),
                     child: const Text('Ready to dispatch'),
                   ),
-                if (t.status == 'ready' &&
+                if(t.status=='ready' && !t.completed && !c.savingTrips.contains(t.id) && !c.failedTripRequests.containsKey(t.id))
+                  FilledButton.icon(onPressed:c.busy ? null : () async {
+                    final error=await c.tripAction(t,'complete');
+                    if(context.mounted) toast(context,error ?? 'Trip completed');
+                  },icon:const Icon(Icons.check),label:const Text('Mark completed')),
+                if(t.completed) const ListTile(leading:Icon(Icons.check_circle_outline),title:Text('Completed')),
+                if (t.status == 'ready' && !t.completed &&
                     !c.savingTrips.contains(t.id) &&
                     !c.failedTripRequests.containsKey(t.id))
                   Padding(
@@ -1083,14 +1110,13 @@ class _HistoryState extends State<HistoryPage> {
         .toList();
     final visibleIds = bills.map((b) => b.id).toSet();
     final grouped = c.trips
+        .where((t) => t.visible)
         .where((t) =>
             (c.selectedCompanyId == null ||
                 t.companyId == c.selectedCompanyId ||
                 t.bills.any((b) => b.companyId == c.selectedCompanyId)) &&
             (query.isEmpty ||
-                '${t.name} ${t.driverName ?? ''}'
-                    .toLowerCase()
-                    .contains(query.toLowerCase()) ||
+                t.matches(query) ||
                 t.bills.any((b) => visibleIds.contains(b.messageId))))
         .toList();
     final linked =
@@ -1132,7 +1158,7 @@ class _HistoryState extends State<HistoryPage> {
         ...grouped.map((t) => Card(
             child: ListTile(
                 leading: const Icon(Icons.local_shipping_outlined),
-                title: Text(t.name),
+                title: Text(t.completed ? '${t.name} · Completed' : t.name),
                 subtitle: Text(
                     '${t.driverName ?? 'Choose driver'}\n${t.entryMode == 'manual' ? '${t.siteCount} sites' : t.bills.where((b) => !b.duplicate).map((b) => b.number).join(' · ')}'),
                 isThreeLine: true,
@@ -1185,14 +1211,6 @@ class _HistoryState extends State<HistoryPage> {
   }
 }
 
-String requestUuid() {
-  final random = Random.secure();
-  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  bytes[6] = (bytes[6] & 15) | 64;
-  bytes[8] = (bytes[8] & 63) | 128;
-  final s = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  return '${s.substring(0, 8)}-${s.substring(8, 12)}-${s.substring(12, 16)}-${s.substring(16, 20)}-${s.substring(20)}';
-}
 
 class SimpleBillPage extends StatefulWidget {
   const SimpleBillPage({

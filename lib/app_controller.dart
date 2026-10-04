@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import 'api_client.dart';
 import 'models.dart';
 import 'session_store.dart';
+import 'request_id.dart';
 
 class DeviceUnlock {
   final LocalAuthentication _auth = LocalAuthentication();
@@ -155,6 +156,49 @@ class AppController extends ChangeNotifier {
     return result;
   }
 
+  Future<String?> tripAction(DeliveryTrip trip, String action, {String? name}) async {
+    if (busy) return 'Please wait';
+    _tripOverrides[trip.id] = DeliveryTrip.fromJson({...trip.raw,
+      if (action == 'rename') 'name': name,
+      if (action == 'complete') 'completedAt': DateTime.now().toIso8601String(),
+      if (action == 'remove') 'removedAt': DateTime.now().toIso8601String(),
+    });
+    savingTrips.add(trip.id);
+    changed();
+    final result = await runMutation((token) async {
+      final saved = await api.operation(token, {
+        'action':'trip_action','tripId':trip.id,'requestId':requestUuid(),
+        'operation':action,if(name!=null)'name':name,
+      });
+      _tripOverrides[trip.id] = DeliveryTrip.fromJson(saved);
+    });
+    savingTrips.remove(trip.id);
+    if (result != null && signedIn) _tripOverrides[trip.id] = trip;
+    _cacheTrips();
+    changed();
+    return result;
+  }
+
+  final Map<String, Map<String, dynamic>> companyProfiles = {};
+  Future<Map<String, dynamic>> companyProfile(String id) async {
+    if (companyProfiles.containsKey(id)) return companyProfiles[id]!;
+    final token = _token;
+    if (token == null) throw const ApiException('Sign in to continue');
+    try {
+      final profile = await api.companyProfile(token, id);
+      if (_token == token) companyProfiles[id] = profile;
+      return profile;
+    } on ApiException catch (e) {
+      if(e.statusCode==401) await logout();
+      rethrow;
+    }
+  }
+  Future<String?> saveCompanyProfile(Map<String,dynamic> payload) => runMutation((token) async {
+    final profile = await api.operation(token, {'action':'company_profile',...payload});
+    companyProfiles[profile['id'].toString()] = profile;
+    rememberCompany({'id':profile['id'],'name':profile['label'],'gstin':profile['gstin']});
+  });
+
   Future<String?> saveTrip(
       Map<String, dynamic> payload, DeliveryTrip preview) async {
     if (busy) return 'Please wait';
@@ -245,6 +289,7 @@ class AppController extends ChangeNotifier {
     _tripOverrides.clear();
     savingTrips.clear();
     failedTripRequests.clear();
+    companyProfiles.clear();
     activeBillId = null;
     selectedCompanyId = null;
     locked = false;

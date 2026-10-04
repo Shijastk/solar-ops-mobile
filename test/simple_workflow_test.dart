@@ -63,6 +63,31 @@ class FakeUnlock extends DeviceUnlock {
 }
 
 void main() {
+  test('empty and removed trips are hidden; products and active bills remain searchable', () {
+    final empty=DeliveryTrip.fromJson({'id':'empty','status':'collecting','bills':[]});
+    expect(empty.visible,false);
+    final manual=DeliveryTrip.fromJson({'id':'manual','entryMode':'manual','name':'Custom',
+      'destination':'Tirur','driverName':'Driver A','items':[{'productName':'Panel','quantity':3,'unit':'NOS'}]});
+    expect(manual.visible,true);
+    expect(manual.matches('tirur'),true);
+    expect(manual.matches('panel'),true);
+    expect(manual.matches('driver a'),true);
+    expect(DeliveryTrip.fromJson({...manual.raw,'removedAt':'2026-10-04'}).visible,false);
+    expect(DeliveryTrip.fromJson({'bills':[{'duplicate':true},{'cancelled':true}]}).visible,false);
+  });
+  test('completion preview is immediate and rolls back a rejected save', () async {
+    final api=MutationApi();
+    final controller=AppController(api:api,store:MemoryStore());
+    await controller.initialize();
+    final old=controller.trips.first;
+    final saving=controller.tripAction(old,'complete');
+    expect(controller.trips.first.completed,true);
+    api.write.completeError(const ApiException('Rejected',statusCode:409));
+    expect(await saving,'Rejected');
+    expect(controller.trips.first.completed,false);
+    for(final read in api.reads) {if(!read.isCompleted) read.complete(BootstrapData.fromJson(sampleData()));}
+    await Future<void>.delayed(Duration.zero);controller.dispose();
+  });
   test('cached launch finishes before network and keeps data when offline',
       () async {
     final api = DelayedApi(), store = MemoryStore();
@@ -163,9 +188,9 @@ void main() {
     addTearDown(c.dispose);
     await tester.pumpWidget(MaterialApp(home: AppShell(controller: c)));
     await tester.pumpAndSettle();
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
     expect(find.text('Tirur'), findsOneWidget);
-    await tester.tap(find.text('All companies'));
+    await tester.tap(find.text('Companies'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Second Solar Company Limited'));
     await tester.pumpAndSettle();

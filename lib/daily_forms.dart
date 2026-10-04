@@ -23,8 +23,8 @@ List<ProductChoice> companyProducts(BootstrapData data, String? companyId) {
 
 class ManualTripInput {
   ManualTripInput(this.companyId, this.place, this.driver, this.sites,
-      this.owner, this.items);
-  final String companyId, place, owner;
+      this.owner, this.items, this.name);
+  final String companyId, place, owner, name;
   final Driver driver;
   final int sites;
   final List<Map<String, dynamic>> items;
@@ -52,11 +52,12 @@ class _ManualTripFormState extends State<ManualTripForm> {
   final form = GlobalKey<FormState>();
   final place = TextEditingController(),
       sites = TextEditingController(text: '1'),
-      owner = TextEditingController();
+      owner = TextEditingController(),
+      tripName = TextEditingController();
   final lines = [_ItemInput()];
   String? companyId;
   Driver? driver;
-  bool ownerVisible = false;
+  bool ownerVisible = false, nameVisible = false;
   @override
   void initState() {
     super.initState();
@@ -72,6 +73,7 @@ class _ManualTripFormState extends State<ManualTripForm> {
     place.dispose();
     sites.dispose();
     owner.dispose();
+    tripName.dispose();
     for (final l in lines) {
       l.dispose();
     }
@@ -129,7 +131,7 @@ class _ManualTripFormState extends State<ManualTripForm> {
                       'unit': l.product?.unit ?? l.unit,
                       'quantity': double.parse(l.quantity.text)
                     })
-                .toList()));
+                .toList(), tripName.text.trim()));
   }
 
   @override
@@ -308,6 +310,12 @@ class _ManualTripFormState extends State<ManualTripForm> {
                             decoration: const InputDecoration(
                                 labelText: 'Owner name (optional)'),
                             maxLength: 120),
+                      if (!nameVisible)
+                        TextButton(onPressed:()=>setState(()=>nameVisible=true),
+                          child:const Text('Add trip name (optional)')),
+                      if(nameVisible)
+                        TextFormField(controller:tripName,maxLength:160,
+                          decoration:const InputDecoration(labelText:'Trip name (optional)')),
                       const SizedBox(height: 18),
                       FilledButton(
                           onPressed: c.busy ? null : submit,
