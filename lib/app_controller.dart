@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'api_client.dart';
@@ -102,8 +101,9 @@ class AppController extends ChangeNotifier {
     DeliveryTrip? result;
     final failure = await runMutation((token) async {
       final json = await api.operation(token, payload);
-      if (json['id'] == null)
+      if (json['id'] == null) {
         throw const ApiException('Could not confirm saved trip. Retry save.');
+      }
       result = DeliveryTrip.fromJson(json);
       _tripOverrides[result!.id] = result!;
     });

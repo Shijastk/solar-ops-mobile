@@ -199,8 +199,9 @@ class _ManualTripFormState extends State<ManualTripForm> {
                           onChanged: (v) async {
                             if (v == '__new_driver__') {
                               await addDriver();
-                              if (mounted)
+                              if (mounted) {
                                 setState(() => driverPickerRevision++);
+                              }
                               return;
                             }
                             setState(() => driver =

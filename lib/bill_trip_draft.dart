@@ -24,26 +24,30 @@ Future<List<DraftPdf>> selectDraftPdfs() async {
   final files = <DraftPdf>[];
   var total = 0;
   for (final file in result.files) {
-    if (file.size > 4 * 1024 * 1024)
+    if (file.size > 4 * 1024 * 1024) {
       throw const ApiException('Choose PDFs smaller than 4 MB');
+    }
     final builder = BytesBuilder(copy: false);
     if (file.bytes != null) {
       builder.add(file.bytes!);
     } else if (file.readStream != null) {
       await for (final chunk in file.readStream!) {
         builder.add(chunk);
-        if (builder.length > 4 * 1024 * 1024)
+        if (builder.length > 4 * 1024 * 1024) {
           throw const ApiException('File too large');
+        }
       }
     } else {
       throw const ApiException('Could not read PDF');
     }
     total += builder.length;
-    if (total > 24 * 1024 * 1024 || files.length >= 30)
+    if (total > 24 * 1024 * 1024 || files.length >= 30) {
       throw const ApiException('Choose up to 30 PDFs, 24 MB total');
+    }
     final bytes = builder.takeBytes();
-    if (bytes.length < 5 || String.fromCharCodes(bytes.take(5)) != '%PDF-')
+    if (bytes.length < 5 || String.fromCharCodes(bytes.take(5)) != '%PDF-') {
       throw const ApiException('Choose a valid PDF');
+    }
     files.add(DraftPdf(file.name, bytes));
   }
   return files;
@@ -96,13 +100,15 @@ class _BillTripDraftState extends State<BillTripDraftPage> {
       final size = [...files, ...selected]
           .fold<int>(0, (sum, f) => sum + f.bytes.length);
       if (files.length + existing.length + selected.length > 30 ||
-          size > 24 * 1024 * 1024)
+          size > 24 * 1024 * 1024) {
         throw const ApiException('Choose up to 30 bills, 24 MB total');
+      }
       setState(() => files.addAll(selected));
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
             () => error = e is ApiException ? e.message : 'Could not open PDF');
+      }
     } finally {
       if (mounted) setState(() => picking = false);
     }
@@ -194,16 +200,18 @@ class _BillTripDraftState extends State<BillTripDraftPage> {
         if (!mounted) return;
         file.duplicate = result['duplicate'] == true;
         if (!file.duplicate) file.messageId = result['id']?.toString();
-        if (!file.duplicate && file.messageId == null)
+        if (!file.duplicate && file.messageId == null) {
           throw const ApiException('Could not confirm bill. Retry save.');
+        }
       }
       final ids = {
         ...existing.map((b) => b.id),
         ...files.where((f) => f.messageId != null).map((f) => f.messageId!)
       }.toList();
-      if (ids.isEmpty)
+      if (ids.isEmpty) {
         throw const ApiException(
             'Already uploaded. No new trip created. Choose the original bill if you want to group it.');
+      }
       committedRequest ??= {
         'action': 'save_bill_trip',
         'requestId': requestId,
@@ -218,16 +226,18 @@ class _BillTripDraftState extends State<BillTripDraftPage> {
       setState(() => allowPop = true);
       Navigator.pop(context, trip);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => error = e is ApiException
             ? e.message
             : 'Could not confirm save. Retry with these same bills.');
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           saving = false;
           progress = null;
         });
+      }
     }
   }
 

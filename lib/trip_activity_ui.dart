@@ -76,8 +76,9 @@ class _ChartState extends State<TripActivityChart> {
   @override
   Widget build(BuildContext context) {
     final activity = TripActivity(widget.data);
-    if (!activity.available)
+    if (!activity.available) {
       return const Text('Trip activity unavailable. Refresh to try again.');
+    }
     final dates = List.generate(
         days, (i) => activity.today.subtract(Duration(days: days - i - 1)));
     final counts = dates
