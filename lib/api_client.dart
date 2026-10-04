@@ -92,12 +92,17 @@ class SolarOpsApi {
   }
 
   Future<Map<String, dynamic>> companyProfile(String token, String id) async {
-    final response = await _client.get(
-      _uri('/api/mobile/v1/profile').replace(queryParameters:{'companyId':id}),
-      headers:_authorized(token)).timeout(const Duration(seconds:20));
+    final response = await _client
+        .get(
+            _uri('/api/mobile/v1/profile')
+                .replace(queryParameters: {'companyId': id}),
+            headers: _authorized(token))
+        .timeout(const Duration(seconds: 20));
     final body = _decode(response);
-    if(response.statusCode!=200) throw ApiException(
-      _errorMessage(body,'Company profile unavailable'),statusCode:response.statusCode);
+    if (response.statusCode != 200) {
+      throw ApiException(_errorMessage(body, 'Company profile unavailable'),
+          statusCode: response.statusCode);
+    }
     return body;
   }
 

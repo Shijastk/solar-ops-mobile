@@ -47,6 +47,7 @@ void main() {
     expect(find.text('Driver'), findsOneWidget);
     expect(find.text('Sites'), findsOneWidget);
     expect(find.text('Owner name (optional)'), findsNothing);
+    expect(find.text('Trip name (optional)'), findsNothing);
     expect(find.text('Upload bill'), findsNothing);
     expect(find.text('Price'), findsNothing);
     expect(tester.takeException(), isNull);

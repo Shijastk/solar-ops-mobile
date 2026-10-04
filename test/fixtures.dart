@@ -54,7 +54,9 @@ Map<String, dynamic> sampleData() => {
           'companyId': 'b',
           'name': 'Palakkad',
           'status': 'collecting',
-          'bills': [{'messageId':'b2','number':'INV-2','companyId':'b'}]
+          'bills': [
+            {'messageId': 'b2', 'number': 'INV-2', 'companyId': 'b'}
+          ]
         }
       ],
       'bills': [

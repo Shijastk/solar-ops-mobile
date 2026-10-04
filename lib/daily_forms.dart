@@ -131,7 +131,8 @@ class _ManualTripFormState extends State<ManualTripForm> {
                       'unit': l.product?.unit ?? l.unit,
                       'quantity': double.parse(l.quantity.text)
                     })
-                .toList(), tripName.text.trim()));
+                .toList(),
+            tripName.text.trim()));
   }
 
   @override
@@ -311,11 +312,15 @@ class _ManualTripFormState extends State<ManualTripForm> {
                                 labelText: 'Owner name (optional)'),
                             maxLength: 120),
                       if (!nameVisible)
-                        TextButton(onPressed:()=>setState(()=>nameVisible=true),
-                          child:const Text('Add trip name (optional)')),
-                      if(nameVisible)
-                        TextFormField(controller:tripName,maxLength:160,
-                          decoration:const InputDecoration(labelText:'Trip name (optional)')),
+                        TextButton(
+                            onPressed: () => setState(() => nameVisible = true),
+                            child: const Text('Add trip name (optional)')),
+                      if (nameVisible)
+                        TextFormField(
+                            controller: tripName,
+                            maxLength: 160,
+                            decoration: const InputDecoration(
+                                labelText: 'Trip name (optional)')),
                       const SizedBox(height: 18),
                       FilledButton(
                           onPressed: c.busy ? null : submit,

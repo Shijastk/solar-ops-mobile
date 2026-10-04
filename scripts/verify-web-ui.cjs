@@ -41,10 +41,22 @@ const assert = require('node:assert/strict');
       .or(page.locator('[aria-label*="INV-1"]'));
     await firstCompanyBill.first().waitFor({ state: 'detached' });
     assert.equal(await firstCompanyBill.count(), 0);
+    await page.mouse.click(362, 28);
+    await expectLabel('Settings');
+    await page.getByText('Settings', { exact: true }).click();
+    await expectLabel('Device lock');
+    await screenshot('04-settings');
+    await page.mouse.click(27, 28);
+    await page.mouse.click(362, 28);
+    await page.getByText('Company profile', { exact: true }).click();
+    await expectLabel('Change photo');
+    await expectLabel('33AAAAA0000A1Z5');
+    await screenshot('05-company-profile');
+    await page.mouse.click(27, 28);
     await page.setViewportSize({ width: 320, height: 740 });
-    await screenshot('04-company-history-narrow');
+    await screenshot('06-company-history-narrow');
     assert.deepEqual(errors, []);
-    console.log('PASS: trips, stock, history and company switching; no page errors');
+    console.log('PASS: trips, stock, history, company switching, settings and profile; no page errors');
   } catch (error) {
     await page.screenshot({ path: 'ui-screenshots/failure.png' });
     fs.writeFileSync('ui-screenshots/semantics.txt', await page.locator('flt-semantics').evaluateAll(

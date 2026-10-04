@@ -708,11 +708,13 @@ class DeliveryTrip {
   bool get completed => raw['completedAt'] != null;
   bool get removed => raw['removedAt'] != null;
   String? get destination => _string(raw['destination']);
-  bool get visible => !removed &&
+  bool get visible =>
+      !removed &&
       (items.isNotEmpty || bills.any((b) => !b.duplicate && !b.cancelled));
   bool matches(String query) =>
       '$name ${destination ?? ''} ${driverName ?? ''} ${vehicleNumber ?? ''} ${items.map((i) => i.name).join(' ')} ${bills.where((b) => !b.duplicate && !b.cancelled).map((b) => b.number).join(' ')}'
-          .toLowerCase().contains(query.trim().toLowerCase());
+          .toLowerCase()
+          .contains(query.trim().toLowerCase());
   DeliveryTrip withDriver(Driver d) =>
       DeliveryTrip.fromJson({...raw, "driverId": d.id, "driverName": d.name});
 }

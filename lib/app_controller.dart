@@ -156,9 +156,11 @@ class AppController extends ChangeNotifier {
     return result;
   }
 
-  Future<String?> tripAction(DeliveryTrip trip, String action, {String? name}) async {
+  Future<String?> tripAction(DeliveryTrip trip, String action,
+      {String? name}) async {
     if (busy) return 'Please wait';
-    _tripOverrides[trip.id] = DeliveryTrip.fromJson({...trip.raw,
+    _tripOverrides[trip.id] = DeliveryTrip.fromJson({
+      ...trip.raw,
       if (action == 'rename') 'name': name,
       if (action == 'complete') 'completedAt': DateTime.now().toIso8601String(),
       if (action == 'remove') 'removedAt': DateTime.now().toIso8601String(),
@@ -167,8 +169,11 @@ class AppController extends ChangeNotifier {
     changed();
     final result = await runMutation((token) async {
       final saved = await api.operation(token, {
-        'action':'trip_action','tripId':trip.id,'requestId':requestUuid(),
-        'operation':action,if(name!=null)'name':name,
+        'action': 'trip_action',
+        'tripId': trip.id,
+        'requestId': requestUuid(),
+        'operation': action,
+        if (name != null) 'name': name,
       });
       _tripOverrides[trip.id] = DeliveryTrip.fromJson(saved);
     });
@@ -189,15 +194,22 @@ class AppController extends ChangeNotifier {
       if (_token == token) companyProfiles[id] = profile;
       return profile;
     } on ApiException catch (e) {
-      if(e.statusCode==401) await logout();
+      if (e.statusCode == 401) await logout();
       rethrow;
     }
   }
-  Future<String?> saveCompanyProfile(Map<String,dynamic> payload) => runMutation((token) async {
-    final profile = await api.operation(token, {'action':'company_profile',...payload});
-    companyProfiles[profile['id'].toString()] = profile;
-    rememberCompany({'id':profile['id'],'name':profile['label'],'gstin':profile['gstin']});
-  });
+
+  Future<String?> saveCompanyProfile(Map<String, dynamic> payload) =>
+      runMutation((token) async {
+        final profile = await api
+            .operation(token, {'action': 'company_profile', ...payload});
+        companyProfiles[profile['id'].toString()] = profile;
+        rememberCompany({
+          'id': profile['id'],
+          'name': profile['label'],
+          'gstin': profile['gstin']
+        });
+      });
 
   Future<String?> saveTrip(
       Map<String, dynamic> payload, DeliveryTrip preview) async {
