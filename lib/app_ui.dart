@@ -172,8 +172,8 @@ Future<void> saveAction(
 }) async {
   final error = await controller.runMutation(action);
   if (context.mounted) {
-toast(context, error ?? success);
-}
+    toast(context, error ?? success);
+  }
 }
 
 Future<String?> askText(
@@ -251,12 +251,12 @@ Future<void> upload(
       );
     });
     if (context.mounted) {
-toast(context, error ?? result);
-}
+      toast(context, error ?? result);
+    }
   } catch (_) {
     if (context.mounted) {
-toast(context, 'Could not open file picker');
-}
+      toast(context, 'Could not open file picker');
+    }
   }
 }
 
@@ -551,8 +551,8 @@ class TripsPage extends StatelessWidget {
                           builder: (_) => TripPage(controller: c, tripId: id)));
                   final error = await pending;
                   if (context.mounted) {
-toast(context, error ?? 'Dispatch saved');
-}
+                    toast(context, error ?? 'Dispatch saved');
+                  }
                 },
           icon: const Icon(Icons.add),
           label: const Text('New trip'),
@@ -581,8 +581,8 @@ toast(context, error ?? 'Dispatch saved');
                                 TripPage(controller: c, tripId: id)));
                     final error = await pending;
                     if (context.mounted) {
-toast(context, error ?? 'Trip created');
-}
+                      toast(context, error ?? 'Trip created');
+                    }
                   },
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Trip from bills')),
@@ -661,8 +661,8 @@ class TripPage extends StatelessWidget {
                               final error = await c.saveTrip(
                                   c.failedTripRequests[t.id]!, t);
                               if (context.mounted) {
-toast(context, error ?? 'Saved');
-}
+                                toast(context, error ?? 'Saved');
+                              }
                             },
                       child: const Text('Retry save'))
                 ],
@@ -714,8 +714,8 @@ toast(context, error ?? 'Saved');
                           if (driver != null && context.mounted) {
                             final error = await c.changeDriver(t, driver);
                             if (context.mounted) {
-toast(context, error ?? 'Driver saved');
-}
+                              toast(context, error ?? 'Driver saved');
+                            }
                           }
                         },
                 ),
@@ -960,8 +960,8 @@ class _StockState extends State<SimpleStockPage> {
                       if (confirm == true) error = await submit(true);
                     }
                     if (context.mounted) {
-toast(context, error ?? 'Stock saved');
-}
+                      toast(context, error ?? 'Stock saved');
+                    }
                   },
             icon: const Icon(Icons.add),
             label: const Text('Add stock')),
