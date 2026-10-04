@@ -211,6 +211,8 @@ class SolarOpsApi {
 
   Future<void> addOpeningStock({
     required String token,
+    String? productId,
+    String? requestId,
     String? companyId,
     String? companyName,
     String? companyGstin,
@@ -222,6 +224,8 @@ class SolarOpsApi {
     bool allowSimilarProduct = false,
   }) async {
     await _postAuthorized(token, '/api/mobile/v1/stock/opening', {
+      'productId': productId,
+      'requestId': requestId,
       'companyId': companyId,
       'companyName': companyName,
       'companyGstin': companyGstin,
@@ -262,7 +266,7 @@ class SolarOpsApi {
       throw ApiException(
         _errorMessage(body, 'Request failed'),
         statusCode: response.statusCode,
-        code: body['code']?.toString(),
+        code: (body['code'] ?? body['status'])?.toString(),
       );
     }
     return body;

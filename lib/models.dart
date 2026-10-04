@@ -12,9 +12,13 @@ class BootstrapData {
     this.drivers = const [],
     this.raw = const {},
     this.todayTotals = const [],
+    this.products = const [],
+    this.todayStock = const [],
   });
 
   final List<TodayTotal> todayTotals;
+  final List<ProductChoice> products;
+  final List<TripItem> todayStock;
   final Map<String, dynamic> raw;
   final List<DeliveryTrip> trips;
   final List<Driver> drivers;
@@ -30,6 +34,8 @@ class BootstrapData {
   factory BootstrapData.fromJson(Map<String, dynamic> json) {
     return BootstrapData(
       raw: json,
+      products: _list(json["products"]).map((x) => ProductChoice.fromJson(_map(x))).toList(),
+      todayStock: _list(json["todayStock"]).map((x) => TripItem.fromJson(_map(x))).toList(),
       todayTotals: _list(json['todayTotals'])
           .map((x) => TodayTotal.fromJson(_map(x)))
           .toList(),
@@ -661,7 +667,13 @@ class TripBill {
 
 class DeliveryTrip {
   DeliveryTrip.fromJson(Map<String, dynamic> json)
-      : companyId = _string(json['companyId']),
+      : raw = json,
+        entryMode = _string(json["entryMode"]) ?? "bills",
+        siteCount = _int(json["siteCount"] ?? 1),
+        ownerName = _string(json["ownerName"]),
+        createdAt = DateTime.tryParse(_string(json["createdAt"]) ?? ""),
+        items = _list(json["items"]).map((x) => TripItem.fromJson(_map(x))).toList(),
+        companyId = _string(json['companyId']),
         id = _string(json['id']) ?? '',
         name = _string(json['name']) ?? 'Trip',
         status = _string(json['status']) ?? 'collecting',
@@ -679,6 +691,13 @@ class DeliveryTrip {
   final String? driverName;
   final String? vehicleNumber;
   final List<TripBill> bills;
+  final Map<String, dynamic> raw;
+  final String entryMode;
+  final int siteCount;
+  final String? ownerName;
+  final DateTime? createdAt;
+  final List<TripItem> items;
+  DeliveryTrip withDriver(Driver d) => DeliveryTrip.fromJson({...raw,"driverId":d.id,"driverName":d.name});
 }
 
 class TodayTotal {
@@ -689,4 +708,18 @@ class TodayTotal {
   final String? companyId;
   final int billCount;
   final double totalAmount;
+}
+
+class ProductChoice {
+  ProductChoice.fromJson(Map<String,dynamic> json) : productId=_string(json['productId']), companyId=_string(json['companyId']) ?? '', name=_string(json['productName']) ?? '', unit=_string(json['unit']) ?? 'NOS', hsnSac=_string(json['hsnSac']);
+  final String? productId;
+  final String companyId, name, unit;
+  final String? hsnSac;
+  String get key => productId ?? '$companyId:$name:$unit';
+}
+class TripItem {
+  TripItem.fromJson(Map<String,dynamic> json) : companyId=_string(json['companyId']), name=_string(json['productName']) ?? '', unit=_string(json['unit']) ?? '', quantity=_double(json['quantity']);
+  final String? companyId;
+  final String name,unit;
+  final double quantity;
 }
