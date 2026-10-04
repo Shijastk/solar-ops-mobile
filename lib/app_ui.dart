@@ -9,6 +9,8 @@ import 'api_client.dart';
 import 'support_ui.dart';
 import 'daily_forms.dart';
 import 'profile_ui.dart';
+import 'bill_trip_draft.dart';
+import 'trip_activity_ui.dart';
 export 'support_ui.dart';
 
 class SolarOpsRoot extends StatefulWidget {
@@ -362,10 +364,23 @@ class _ShellState extends State<AppShell> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(company,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        title: Semantics(
+            label: 'Switch company',
+            button: true,
+            child: InkWell(
+                onTap: companyPicker,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(children: [
+                      Flexible(
+                          child: Text(company,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w600))),
+                      const Icon(Icons.expand_more)
+                    ])))),
         actions: [
           PopupMenuButton<String>(
             onSelected: menu,
@@ -439,11 +454,7 @@ class _ShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
-          if (i == 3) {
-            companyPicker();
-          } else {
-            setState(() => index = i);
-          }
+          setState(() => index = i);
         },
         destinations: const [
           NavigationDestination(
@@ -458,8 +469,6 @@ class _ShellState extends State<AppShell> {
             icon: Icon(Icons.receipt_long_outlined),
             label: 'History',
           ),
-          NavigationDestination(
-              icon: Icon(Icons.business_outlined), label: 'Companies'),
         ],
       ),
     );
@@ -556,27 +565,21 @@ class _TripsState extends State<TripsPage> {
             onPressed: c.busy
                 ? null
                 : () async {
-                    final id = requestUuid();
-                    final preview = DeliveryTrip.fromJson({
-                      'id': id,
-                      'companyId': c.selectedCompanyId,
-                      'name': 'New trip',
-                      'status': 'collecting',
-                      'bills': []
-                    });
-                    final pending = c.saveTrip({
-                      'action': 'create_trip',
-                      'requestId': id,
-                      'companyId': c.selectedCompanyId
-                    }, preview);
-                    Navigator.push(
+                    final saved = await Navigator.push<DeliveryTrip>(
                         context,
-                        MaterialPageRoute<void>(
-                            builder: (_) =>
-                                TripPage(controller: c, tripId: id)));
-                    final error = await pending;
-                    if (context.mounted) {
-                      toast(context, error ?? 'Trip created');
+                        MaterialPageRoute(
+                            builder: (_) => BillTripDraftPage(controller: c)));
+                    if (saved != null && context.mounted) {
+                      toast(
+                          context,
+                          saved.bills.any((b) => b.needsAttention)
+                              ? 'Trip saved · check bills'
+                              : 'Trip saved');
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  TripPage(controller: c, tripId: saved.id)));
                     }
                   },
             icon: const Icon(Icons.receipt_long_outlined),
@@ -997,6 +1000,9 @@ class _StockState extends State<SimpleStockPage> {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
+        TripSummaryCards(
+            data: data.raw['tripActivity'], companyId: c.selectedCompanyId),
+        const SizedBox(height: 16),
         TextField(
           decoration: const InputDecoration(
             hintText: 'Search stock',
@@ -1063,29 +1069,6 @@ class _StockState extends State<SimpleStockPage> {
             icon: const Icon(Icons.add),
             label: const Text('Add stock')),
         const SizedBox(height: 16),
-        const Text('Today dispatched',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-        if (!data.todayStock.any((i) =>
-            c.selectedCompanyId == null || i.companyId == c.selectedCompanyId))
-          const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Text('No dispatch recorded today')),
-        ...data.todayStock
-            .where((i) =>
-                (c.selectedCompanyId == null ||
-                    i.companyId == c.selectedCompanyId) &&
-                i.name.toLowerCase().contains(query.toLowerCase()))
-            .map((i) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(i.name),
-                subtitle: c.selectedCompanyId == null
-                    ? Text(data.stock.companies
-                        .where((x) => x.id == i.companyId)
-                        .map((x) => x.name)
-                        .join())
-                    : null,
-                trailing: Text('${qty(i.quantity)} ${i.unit}'))),
-        const Divider(height: 28),
         const Text('Balance stock',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
         ...balances.map(
@@ -1127,6 +1110,13 @@ class _StockState extends State<SimpleStockPage> {
             ),
           ),
         ),
+        if (balances.isEmpty)
+          const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text('No matching stock')),
+        const SizedBox(height: 24),
+        TripActivityChart(
+            data: data.raw['tripActivity'], companyId: c.selectedCompanyId),
       ],
     );
   }

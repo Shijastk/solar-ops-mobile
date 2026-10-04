@@ -45,11 +45,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Place'), findsOneWidget);
     expect(find.text('Driver'), findsOneWidget);
-    expect(find.text('Sites'), findsOneWidget);
+    expect(find.text('Sites'), findsNothing);
+    expect(find.text('1 site · More details'), findsOneWidget);
+    expect(find.text('+ Add driver'), findsNothing);
     expect(find.text('Owner name (optional)'), findsNothing);
     expect(find.text('Trip name (optional)'), findsNothing);
     expect(find.text('Upload bill'), findsNothing);
     expect(find.text('Price'), findsNothing);
+    await tester.tap(find.text('1 site · More details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sites'), findsOneWidget);
+    expect(find.text('Owner name (optional)'), findsOneWidget);
+    expect(find.text('Trip name (optional)'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

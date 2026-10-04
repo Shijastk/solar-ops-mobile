@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'api_client.dart';
@@ -82,6 +83,36 @@ class AppController extends ChangeNotifier {
   bool _refreshAgain = false;
   final Map<String, DeliveryTrip> _tripOverrides = {};
   final Set<String> savingTrips = {};
+  // Uploads are local to the draft page, not the app-wide mutation lock.
+  Future<Map<String, dynamic>> uploadDraftFile(
+      String name, Uint8List bytes, String requestId) async {
+    final token = _token;
+    if (token == null || locked) throw const ApiException('Unlock to continue');
+    _writeVersion++;
+    try {
+      return await api.uploadBillResult(token, name, bytes,
+          requestId: requestId);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) await logout();
+      rethrow;
+    }
+  }
+
+  Future<DeliveryTrip> commitBillDraft(Map<String, dynamic> payload) async {
+    DeliveryTrip? result;
+    final failure = await runMutation((token) async {
+      final json = await api.operation(token, payload);
+      if (json['id'] == null)
+        throw const ApiException('Could not confirm saved trip. Retry save.');
+      result = DeliveryTrip.fromJson(json);
+      _tripOverrides[result!.id] = result!;
+    });
+    if (failure != null) throw ApiException(failure);
+    _cacheTrips();
+    changed();
+    return result!;
+  }
+
   final Map<String, Map<String, dynamic>> failedTripRequests = {};
   List<DeliveryTrip> get trips => [
         ..._tripOverrides.values

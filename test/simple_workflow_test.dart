@@ -203,7 +203,7 @@ void main() {
     c.dispose();
   });
   testWidgets(
-      'three work pages and bottom company switching filter trips, stock and grouped history',
+      'three work pages and top company switching filter trips, stock and grouped history',
       (tester) async {
     tester.view.physicalSize = const Size(320, 740);
     tester.view.devicePixelRatio = 1;
@@ -215,9 +215,9 @@ void main() {
     addTearDown(c.dispose);
     await tester.pumpWidget(MaterialApp(home: AppShell(controller: c)));
     await tester.pumpAndSettle();
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(find.byType(NavigationDestination), findsNWidgets(3));
     expect(find.text('Tirur'), findsOneWidget);
-    await tester.tap(find.text('Companies'));
+    await tester.tap(find.text('All companies'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Second Solar Company Limited'));
     await tester.pumpAndSettle();

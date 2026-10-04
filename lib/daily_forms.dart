@@ -57,7 +57,7 @@ class _ManualTripFormState extends State<ManualTripForm> {
   final lines = [_ItemInput()];
   String? companyId;
   Driver? driver;
-  bool ownerVisible = false, nameVisible = false;
+  int driverPickerRevision = 0;
   @override
   void initState() {
     super.initState();
@@ -182,24 +182,30 @@ class _ManualTripFormState extends State<ManualTripForm> {
                               : null,
                           maxLength: 200),
                       DropdownButtonFormField<String>(
-                          key: ValueKey(driver?.id),
+                          key: ValueKey('${driver?.id}:$driverPickerRevision'),
                           initialValue: driver?.id,
                           isExpanded: true,
                           decoration:
                               const InputDecoration(labelText: 'Driver'),
-                          items: c.data!.drivers
-                              .map((d) => DropdownMenuItem(
-                                  value: d.id, child: Text(d.name)))
-                              .toList(),
+                          items: [
+                            ...c.data!.drivers.map((d) => DropdownMenuItem(
+                                value: d.id, child: Text(d.name))),
+                            const DropdownMenuItem(
+                                value: '__new_driver__',
+                                child: Text('+ Add driver'))
+                          ],
                           validator: (v) =>
-                              v == null ? 'Choose a driver' : null,
-                          onChanged: (v) => setState(() => driver =
-                              c.data!.drivers.firstWhere((d) => d.id == v))),
-                      Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                              onPressed: c.busy ? null : addDriver,
-                              child: const Text('+ Add driver'))),
+                              driver == null ? 'Choose a driver' : null,
+                          onChanged: (v) async {
+                            if (v == '__new_driver__') {
+                              await addDriver();
+                              if (mounted)
+                                setState(() => driverPickerRevision++);
+                              return;
+                            }
+                            setState(() => driver =
+                                c.data!.drivers.firstWhere((d) => d.id == v));
+                          }),
                       ...lines.asMap().entries.map((entry) {
                         final l = entry.value;
                         return Padding(
@@ -287,44 +293,43 @@ class _ManualTripFormState extends State<ManualTripForm> {
                             onPressed: () =>
                                 setState(() => lines.add(_ItemInput())),
                             child: const Text('+ Add product')),
-                      TextFormField(
-                          controller: sites,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Sites'),
-                          validator: (v) {
-                            final n = int.tryParse(v ?? '');
-                            return n == null || n < 1 || n > 1000
-                                ? 'Enter 1–1000 sites'
-                                : null;
-                          }),
-                      if (!ownerVisible)
-                        Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton(
-                                onPressed: () =>
-                                    setState(() => ownerVisible = true),
-                                child:
-                                    const Text('Add owner name (optional)'))),
-                      if (ownerVisible)
-                        TextFormField(
-                            controller: owner,
-                            decoration: const InputDecoration(
-                                labelText: 'Owner name (optional)'),
-                            maxLength: 120),
-                      if (!nameVisible)
-                        TextButton(
-                            onPressed: () => setState(() => nameVisible = true),
-                            child: const Text('Add trip name (optional)')),
-                      if (nameVisible)
-                        TextFormField(
-                            controller: tripName,
-                            maxLength: 160,
-                            decoration: const InputDecoration(
-                                labelText: 'Trip name (optional)')),
+                      ExpansionTile(
+                          title: Text(
+                              '${sites.text} site${sites.text == '1' ? '' : 's'} · More details'),
+                          children: [
+                            Row(children: [
+                              const Expanded(child: Text('Sites')),
+                              IconButton(
+                                  tooltip: 'Fewer sites',
+                                  onPressed: int.parse(sites.text) > 1
+                                      ? () => setState(() => sites.text =
+                                          '${int.parse(sites.text) - 1}')
+                                      : null,
+                                  icon: const Icon(Icons.remove)),
+                              Text(sites.text),
+                              IconButton(
+                                  tooltip: 'More sites',
+                                  onPressed: int.parse(sites.text) < 1000
+                                      ? () => setState(() => sites.text =
+                                          '${int.parse(sites.text) + 1}')
+                                      : null,
+                                  icon: const Icon(Icons.add))
+                            ]),
+                            TextFormField(
+                                controller: owner,
+                                decoration: const InputDecoration(
+                                    labelText: 'Owner name (optional)'),
+                                maxLength: 120),
+                            TextFormField(
+                                controller: tripName,
+                                maxLength: 160,
+                                decoration: const InputDecoration(
+                                    labelText: 'Trip name (optional)')),
+                          ]),
                       const SizedBox(height: 18),
                       FilledButton(
                           onPressed: c.busy ? null : submit,
-                          child: const Text('Save dispatch')),
+                          child: const Text('Save trip')),
                     ]))));
   }
 }

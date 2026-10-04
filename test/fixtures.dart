@@ -1,5 +1,21 @@
 Map<String, dynamic> sampleData() => {
       'generatedAt': DateTime.now().toIso8601String(),
+      'drivers': [
+        {'id': 'driver-a', 'name': 'Driver A'}
+      ],
+      'tripActivity': {
+        'today': DateTime.now()
+            .toUtc()
+            .add(const Duration(hours: 5, minutes: 30))
+            .toIso8601String()
+            .substring(0, 10),
+        'pending': [
+          {'companyId': null, 'count': 2},
+          {'companyId': 'a', 'count': 1},
+          {'companyId': 'b', 'count': 1}
+        ],
+        'daily': []
+      },
       'todayTotals': [
         {'companyId': 'a', 'billCount': 1, 'totalAmount': 100},
         {'companyId': 'b', 'billCount': 1, 'totalAmount': 200}
