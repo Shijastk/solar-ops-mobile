@@ -666,11 +666,13 @@ class StockAdjustmentDialog extends StatefulWidget {
     required this.productName,
     required this.unit,
     required this.currentQuantity,
+    this.currentKnown = true,
   });
 
   final String productName;
   final String unit;
   final double currentQuantity;
+  final bool currentKnown;
 
   @override
   State<StockAdjustmentDialog> createState() => _StockAdjustmentDialogState();
@@ -683,7 +685,7 @@ class _StockAdjustmentDialogState extends State<StockAdjustmentDialog> {
   void initState() {
     super.initState();
     quantityController = TextEditingController(
-      text: qty(widget.currentQuantity),
+      text: widget.currentKnown ? qty(widget.currentQuantity) : "",
     );
   }
 

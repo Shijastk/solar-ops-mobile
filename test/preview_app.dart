@@ -15,5 +15,14 @@ class PreviewStore extends SessionStore {
 void main() {
   final c = AppController(store: PreviewStore())
     ..data = BootstrapData.fromJson(sampleData());
+  for (final company in c.data!.stock.companies) {
+    c.companyProfiles[company.id] = {
+      'id': company.id,
+      'name': company.name,
+      'label': company.name,
+      'gstin': company.gstin,
+      'photo': null
+    };
+  }
   runApp(SolarOpsApp(home: AppShell(controller: c)));
 }
