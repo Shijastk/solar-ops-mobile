@@ -1174,7 +1174,7 @@ class _HistoryState extends State<HistoryPage> {
               ),
             ),
         const Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Text(
             'Recent bills · Original PDFs are kept for 24 hours. Bill records stay saved.',
             style: TextStyle(fontSize: 12),
