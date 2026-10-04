@@ -121,6 +121,13 @@ class SolarOpsApi {
     Uint8List bytes, {
     String? tripId,
   }) async {
+    final body = await uploadBillResult(token, name, bytes, tripId: tripId);
+    return body['message']?.toString() ?? 'Bill saved';
+  }
+
+  Future<Map<String, dynamic>> uploadBillResult(
+      String token, String name, Uint8List bytes,
+      {String? tripId, String? requestId}) async {
     final request = http.MultipartRequest(
       'POST',
       _uri('/api/mobile/v1/upload'),
@@ -130,9 +137,10 @@ class SolarOpsApi {
       http.MultipartFile.fromBytes('file', bytes, filename: name),
     );
     if (tripId != null) request.fields['tripId'] = tripId;
+    if (requestId != null) request.fields['requestId'] = requestId;
     final response = await http.Response.fromStream(
-      await _client.send(request).timeout(const Duration(seconds: 75)),
-    );
+      await _client.send(request),
+    ).timeout(const Duration(seconds: 75));
     final body = _decode(response);
     if (response.statusCode != 200) {
       throw ApiException(
@@ -140,7 +148,7 @@ class SolarOpsApi {
         statusCode: response.statusCode,
       );
     }
-    return body['message']?.toString() ?? 'Bill saved';
+    return body;
   }
 
   Future<Bill> billDetails(String token, String id) async {

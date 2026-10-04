@@ -35,6 +35,16 @@ Stock shows Today dispatched per product/unit and Balance stock. Product choices
 The backend migration and APIs must be deployed before using these new forms. Tests use synthetic data and delayed/rejected requests; they do not measure latency on a real phone.
 ### Daily navigation and trip controls
 
-Companies now opens the company switch/create sheet from the bottom bar. Profile and Settings are in the three-dot menu; device lock is optional and sessions stay saved. Company Profile has a display name, read-only GSTIN and a photo resized/cropped on device to 128px PNG. Photos load on opening Profile, never at app startup. The profile label does not change canonical company identity.
+Tap the company title at the top to switch/create a company. The bottom bar contains only Trips, Stock and History. Profile and Settings are in the three-dot menu; device lock is optional and sessions stay saved. Company Profile has a display name, read-only GSTIN and a photo resized/cropped on device to 128px PNG. Photos load on opening Profile, never at app startup. The profile label does not change canonical company identity.
 
 Lists hide empty trips; manual creation offers a hidden optional trip name, defaulting to place. A trip menu supports rename and Delete. Delete removes the group without deleting bills or returning stock; stock correction remains separate. Ready trips have Mark completed, which adds no stock deduction. Recent trip search includes place, name, driver, vehicle, products and bill numbers; existing stock/history search remains. Payments are deferred until operator review.
+
+## Save-only workflow (0.5.0)
+
+Manual creation normally shows place, driver, product and quantity. Site count defaults to one; a single More details expansion contains site adjustment, owner and optional name. Add driver lives in the driver picker. Existing product units are reused.
+
+Opening Trip from bills and selecting PDFs makes no server request or stock change. PDFs stay in the in-memory draft (up to 30 bills / 24 MiB total, each at most 4 MiB) until Save trip. Save uploads/checks each PDF, then atomically creates the group and links its bills. Upload UUIDs and the group UUID are reused on retry. Review-required bills stay in a saved collecting group, not falsely ready. Duplicate-only selections create no group. A failed group save may leave explicitly uploaded bills in History; it does not roll back independent verified bill movements. Leave warns accordingly. Unsaved PDF bytes are not crash-persistent. Save currently keeps the draft page open until acknowledgement; this is not a durable background upload service.
+
+Stock removes Today dispatched. Two cards show Completed today and To complete; a bottom bar chart shows completed trips over 7/30 India-time days. Counts are full-database aggregates, independent of the 60 recent trip rows. All companies counts each trip once even if it contains bills from multiple companies. Ready is not counted as completed. Missing summaries say Unavailable, not zero. The chart is activity, not sales revenue or payment collection. Individual bars expose exact daily counts; 30-day bars scroll horizontally. Unknown physical balances remain Not recorded.
+
+Backend upload logs measure storage/parsing/verification separately without file names or business identifiers. Client timeout covers the whole response, not only headers. CI and synthetic SQL tests are verification gates; physical-phone processing speed and PDF picker still require device acceptance.
