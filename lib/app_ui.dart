@@ -171,7 +171,9 @@ Future<void> saveAction(
   String success = 'Saved',
 }) async {
   final error = await controller.runMutation(action);
-  if (context.mounted) toast(context, error ?? success);
+  if (context.mounted) {
+toast(context, error ?? success);
+}
 }
 
 Future<String?> askText(
@@ -248,9 +250,13 @@ Future<void> upload(
         tripId: tripId,
       );
     });
-    if (context.mounted) toast(context, error ?? result);
+    if (context.mounted) {
+toast(context, error ?? result);
+}
   } catch (_) {
-    if (context.mounted) toast(context, 'Could not open file picker');
+    if (context.mounted) {
+toast(context, 'Could not open file picker');
+}
   }
 }
 
@@ -281,7 +287,17 @@ class _ShellState extends State<AppShell> {
                 Navigator.pop(context);
               },
             ),
-            ListTile(leading:const Icon(Icons.add),title:const Text("Create new company"),onTap:(){Navigator.pop(context);showModalBottomSheet<void>(context:this.context,isScrollControlled:true,showDragHandle:true,builder:(_)=>CreateCompanySheet(controller:c));}),
+            ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text("Create new company"),
+                onTap: () {
+                  Navigator.pop(context);
+                  showModalBottomSheet<void>(
+                      context: this.context,
+                      isScrollControlled: true,
+                      showDragHandle: true,
+                      builder: (_) => CreateCompanySheet(controller: c));
+                }),
             ...?c.data?.stock.companies.map(
               (company) => ListTile(
                 title: Text(company.name),
@@ -470,8 +486,10 @@ class TripsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller, data = c.data!;
     final trips = c.trips
-        .where(
-            (t) => t.entryMode == 'manual' || t.status == 'collecting' || t.bills.any((b) => !b.duplicate))
+        .where((t) =>
+            t.entryMode == 'manual' ||
+            t.status == 'collecting' ||
+            t.bills.any((b) => !b.duplicate))
         .where(
           (t) =>
               c.selectedCompanyId == null ||
@@ -491,24 +509,83 @@ class TripsPage extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       children: [
         FilledButton.icon(
-          onPressed:c.busy?null:() async {
-            final input=await showModalBottomSheet<ManualTripInput>(context:context,isScrollControlled:true,showDragHandle:true,builder:(_)=>ManualTripForm(controller:c));
-            if(input==null||!context.mounted)return;
-            final id=requestUuid();
-            final preview=DeliveryTrip.fromJson({'id':id,'companyId':input.companyId,'name':input.place,'driverId':input.driver.id,'driverName':input.driver.name,'status':'ready','entryMode':'manual','siteCount':input.sites,'ownerName':input.owner,'createdAt':DateTime.now().toIso8601String(),'items':input.items.map((i)=>{...i,'companyId':input.companyId}).toList(),'bills':[]});
-            final pending=c.saveTrip({'action':'manual_dispatch','requestId':id,'companyId':input.companyId,'destination':input.place,'driverId':input.driver.id,'siteCount':input.sites,'ownerName':input.owner,'items':input.items},preview);
-            Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>TripPage(controller:c,tripId:id)));
-            final error=await pending;if(context.mounted)toast(context,error??'Dispatch saved');
-          },
-          icon:const Icon(Icons.add),label:const Text('New trip'),
+          onPressed: c.busy
+              ? null
+              : () async {
+                  final input = await showModalBottomSheet<ManualTripInput>(
+                      context: context,
+                      isScrollControlled: true,
+                      showDragHandle: true,
+                      builder: (_) => ManualTripForm(controller: c));
+                  if (input == null || !context.mounted) return;
+                  final id = requestUuid();
+                  final preview = DeliveryTrip.fromJson({
+                    'id': id,
+                    'companyId': input.companyId,
+                    'name': input.place,
+                    'driverId': input.driver.id,
+                    'driverName': input.driver.name,
+                    'status': 'ready',
+                    'entryMode': 'manual',
+                    'siteCount': input.sites,
+                    'ownerName': input.owner,
+                    'createdAt': DateTime.now().toIso8601String(),
+                    'items': input.items
+                        .map((i) => {...i, 'companyId': input.companyId})
+                        .toList(),
+                    'bills': []
+                  });
+                  final pending = c.saveTrip({
+                    'action': 'manual_dispatch',
+                    'requestId': id,
+                    'companyId': input.companyId,
+                    'destination': input.place,
+                    'driverId': input.driver.id,
+                    'siteCount': input.sites,
+                    'ownerName': input.owner,
+                    'items': input.items
+                  }, preview);
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                          builder: (_) => TripPage(controller: c, tripId: id)));
+                  final error = await pending;
+                  if (context.mounted) {
+toast(context, error ?? 'Dispatch saved');
+}
+                },
+          icon: const Icon(Icons.add),
+          label: const Text('New trip'),
         ),
-        TextButton.icon(onPressed:c.busy?null:() async {
-          final id=requestUuid();
-          final preview=DeliveryTrip.fromJson({'id':id,'companyId':c.selectedCompanyId,'name':'New trip','status':'collecting','bills':[]});
-          final pending=c.saveTrip({'action':'create_trip','requestId':id,'companyId':c.selectedCompanyId},preview);
-          Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>TripPage(controller:c,tripId:id)));
-          final error=await pending;if(context.mounted)toast(context,error??'Trip created');
-        },icon:const Icon(Icons.receipt_long_outlined),label:const Text('Trip from bills')),
+        TextButton.icon(
+            onPressed: c.busy
+                ? null
+                : () async {
+                    final id = requestUuid();
+                    final preview = DeliveryTrip.fromJson({
+                      'id': id,
+                      'companyId': c.selectedCompanyId,
+                      'name': 'New trip',
+                      'status': 'collecting',
+                      'bills': []
+                    });
+                    final pending = c.saveTrip({
+                      'action': 'create_trip',
+                      'requestId': id,
+                      'companyId': c.selectedCompanyId
+                    }, preview);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) =>
+                                TripPage(controller: c, tripId: id)));
+                    final error = await pending;
+                    if (context.mounted) {
+toast(context, error ?? 'Trip created');
+}
+                  },
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: const Text('Trip from bills')),
         const SizedBox(height: 18),
         if (trips.isEmpty)
           const Padding(
@@ -571,10 +648,31 @@ class TripPage extends StatelessWidget {
             body: ListView(
               padding: const EdgeInsets.all(18),
               children: [
-                if(c.savingTrips.contains(t.id)) const Padding(padding:EdgeInsets.only(bottom:12),child:Text('Saving…')),
-                if(c.failedTripRequests.containsKey(t.id)) ...[Text(c.error??'Not saved'),FilledButton(onPressed:c.busy?null:() async {final error=await c.saveTrip(c.failedTripRequests[t.id]!,t);if(context.mounted)toast(context,error??'Saved');},child:const Text('Retry save'))],
-                ...t.items.map((i)=>ListTile(contentPadding:EdgeInsets.zero,title:Text(i.name),trailing:Text('${qty(i.quantity)} ${i.unit}'))),
-                if(t.entryMode=='manual') Text('${t.siteCount} sites${t.ownerName?.isNotEmpty==true ? ' · ${t.ownerName}' : ''}'),
+                if (c.savingTrips.contains(t.id))
+                  const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text('Saving…')),
+                if (c.failedTripRequests.containsKey(t.id)) ...[
+                  Text(c.error ?? 'Not saved'),
+                  FilledButton(
+                      onPressed: c.busy
+                          ? null
+                          : () async {
+                              final error = await c.saveTrip(
+                                  c.failedTripRequests[t.id]!, t);
+                              if (context.mounted) {
+toast(context, error ?? 'Saved');
+}
+                            },
+                      child: const Text('Retry save'))
+                ],
+                ...t.items.map((i) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i.name),
+                    trailing: Text('${qty(i.quantity)} ${i.unit}'))),
+                if (t.entryMode == 'manual')
+                  Text(
+                      '${t.siteCount} sites${t.ownerName?.isNotEmpty == true ? ' · ${t.ownerName}' : ''}'),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(t.driverName ?? 'Choose driver'),
@@ -614,8 +712,10 @@ class TripPage extends StatelessWidget {
                             ),
                           );
                           if (driver != null && context.mounted) {
-                            final error=await c.changeDriver(t,driver);
-                            if(context.mounted)toast(context,error??'Driver saved');
+                            final error = await c.changeDriver(t, driver);
+                            if (context.mounted) {
+toast(context, error ?? 'Driver saved');
+}
                           }
                         },
                 ),
@@ -646,7 +746,10 @@ class TripPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                if (t.status == 'collecting' && t.entryMode != 'manual' && !c.savingTrips.contains(t.id) && !c.failedTripRequests.containsKey(t.id)) ...[
+                if (t.status == 'collecting' &&
+                    t.entryMode != 'manual' &&
+                    !c.savingTrips.contains(t.id) &&
+                    !c.failedTripRequests.containsKey(t.id)) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed:
@@ -718,10 +821,16 @@ class TripPage extends StatelessWidget {
                             }, success: 'Trip ready'),
                     child: const Text('Ready to dispatch'),
                   ),
-                if (t.status == 'ready' && !c.savingTrips.contains(t.id) && !c.failedTripRequests.containsKey(t.id))
+                if (t.status == 'ready' &&
+                    !c.savingTrips.contains(t.id) &&
+                    !c.failedTripRequests.containsKey(t.id))
                   Padding(
-                    padding: EdgeInsets.all(16),
-                    child:Text(t.entryMode=='manual'?'Dispatch recorded':'Ready to dispatch',textAlign:TextAlign.center),
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                        t.entryMode == 'manual'
+                            ? 'Dispatch recorded'
+                            : 'Ready to dispatch',
+                        textAlign: TextAlign.center),
                   ),
               ],
             ),
@@ -745,7 +854,7 @@ class DriversPage extends StatelessWidget {
                     final name = await askText(context, 'Driver name');
                     if (name != null && name.isNotEmpty && context.mounted) {
                       await saveAction(context, controller, (token) async {
-                        final saved=await controller.api.operation(token, {
+                        final saved = await controller.api.operation(token, {
                           'action': 'driver',
                           'name': name,
                         });
@@ -799,27 +908,89 @@ class _StockState extends State<SimpleStockPage> {
           onChanged: (v) => setState(() => query = v),
         ),
         const SizedBox(height: 12),
-        OutlinedButton.icon(onPressed:c.busy?null:() async {
-          final input=await showModalBottomSheet<StockEntry>(context:context,isScrollControlled:true,showDragHandle:true,builder:(_)=>StockEntrySheet(controller:c));
-          if(input==null||!context.mounted)return;
-          final requestId=requestUuid();
-          String? code;
-          Future<String?> submit(bool allow) => c.runMutation((token) async {
-            try{await c.api.addOpeningStock(token:token,productId:input.product?.productId,requestId:requestId,companyId:input.companyId,productName:input.name,unit:input.unit,quantity:input.quantity,hsnSac:input.product?.hsnSac,allowSimilarProduct:allow);}on ApiException catch(e){code=e.code;rethrow;}
-          });
-          var error=await submit(false);
-          if(code=='potential_product_duplicate'&&context.mounted){
-            final confirm=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Similar product exists'),content:const Text('Choose the existing product unless this is genuinely a different model or product.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Go back')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Different product'))]));
-            if(confirm==true)error=await submit(true);
-          }
-          if(context.mounted)toast(context,error??'Stock saved');
-        },icon:const Icon(Icons.add),label:const Text('Add stock')),
-        const SizedBox(height:16),
-        const Text('Today dispatched',style:TextStyle(fontSize:20,fontWeight:FontWeight.w700)),
-        if(!data.todayStock.any((i)=>c.selectedCompanyId==null||i.companyId==c.selectedCompanyId)) const Padding(padding:EdgeInsets.symmetric(vertical:10),child:Text('No dispatch recorded today')),
-        ...data.todayStock.where((i)=>(c.selectedCompanyId==null||i.companyId==c.selectedCompanyId)&&i.name.toLowerCase().contains(query.toLowerCase())).map((i)=>ListTile(contentPadding:EdgeInsets.zero,title:Text(i.name),subtitle:c.selectedCompanyId==null?Text(data.stock.companies.where((x)=>x.id==i.companyId).map((x)=>x.name).join()):null,trailing:Text('${qty(i.quantity)} ${i.unit}'))),
-        const Divider(height:28),
-        const Text('Balance stock',style:TextStyle(fontSize:20,fontWeight:FontWeight.w700)),
+        OutlinedButton.icon(
+            onPressed: c.busy
+                ? null
+                : () async {
+                    final input = await showModalBottomSheet<StockEntry>(
+                        context: context,
+                        isScrollControlled: true,
+                        showDragHandle: true,
+                        builder: (_) => StockEntrySheet(controller: c));
+                    if (input == null || !context.mounted) return;
+                    final requestId = requestUuid();
+                    String? code;
+                    Future<String?> submit(bool allow) =>
+                        c.runMutation((token) async {
+                          try {
+                            await c.api.addOpeningStock(
+                                token: token,
+                                productId: input.product?.productId,
+                                requestId: requestId,
+                                companyId: input.companyId,
+                                productName: input.name,
+                                unit: input.unit,
+                                quantity: input.quantity,
+                                hsnSac: input.product?.hsnSac,
+                                allowSimilarProduct: allow);
+                          } on ApiException catch (e) {
+                            code = e.code;
+                            rethrow;
+                          }
+                        });
+                    var error = await submit(false);
+                    if (code == 'potential_product_duplicate' &&
+                        context.mounted) {
+                      final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                                  title: const Text('Similar product exists'),
+                                  content: const Text(
+                                      'Choose the existing product unless this is genuinely a different model or product.'),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Go back')),
+                                    FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text('Different product'))
+                                  ]));
+                      if (confirm == true) error = await submit(true);
+                    }
+                    if (context.mounted) {
+toast(context, error ?? 'Stock saved');
+}
+                  },
+            icon: const Icon(Icons.add),
+            label: const Text('Add stock')),
+        const SizedBox(height: 16),
+        const Text('Today dispatched',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        if (!data.todayStock.any((i) =>
+            c.selectedCompanyId == null || i.companyId == c.selectedCompanyId))
+          const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text('No dispatch recorded today')),
+        ...data.todayStock
+            .where((i) =>
+                (c.selectedCompanyId == null ||
+                    i.companyId == c.selectedCompanyId) &&
+                i.name.toLowerCase().contains(query.toLowerCase()))
+            .map((i) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(i.name),
+                subtitle: c.selectedCompanyId == null
+                    ? Text(data.stock.companies
+                        .where((x) => x.id == i.companyId)
+                        .map((x) => x.name)
+                        .join())
+                    : null,
+                trailing: Text('${qty(i.quantity)} ${i.unit}'))),
+        const Divider(height: 28),
+        const Text('Balance stock',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
         ...balances.map(
           (b) => Card(
             child: ListTile(
@@ -841,6 +1012,7 @@ class _StockState extends State<SimpleStockPage> {
                           productName: b.productName,
                           unit: b.unit,
                           currentQuantity: b.currentQuantity,
+                          currentKnown: b.balanceKnown,
                         ),
                       );
                       if (target != null && context.mounted) {
@@ -909,12 +1081,20 @@ class _HistoryState extends State<HistoryPage> {
                   .contains(query.toLowerCase()),
         )
         .toList();
-    final visibleIds=bills.map((b)=>b.id).toSet();
-    final grouped=c.trips.where((t)=>
-      (c.selectedCompanyId==null || t.companyId==c.selectedCompanyId || t.bills.any((b)=>b.companyId==c.selectedCompanyId)) &&
-      (query.isEmpty || '${t.name} ${t.driverName??''}'.toLowerCase().contains(query.toLowerCase()) || t.bills.any((b)=>visibleIds.contains(b.messageId)))
-    ).toList();
-    final linked=c.trips.expand((t)=>t.bills).map((b)=>b.messageId).toSet();
+    final visibleIds = bills.map((b) => b.id).toSet();
+    final grouped = c.trips
+        .where((t) =>
+            (c.selectedCompanyId == null ||
+                t.companyId == c.selectedCompanyId ||
+                t.bills.any((b) => b.companyId == c.selectedCompanyId)) &&
+            (query.isEmpty ||
+                '${t.name} ${t.driverName ?? ''}'
+                    .toLowerCase()
+                    .contains(query.toLowerCase()) ||
+                t.bills.any((b) => visibleIds.contains(b.messageId))))
+        .toList();
+    final linked =
+        c.trips.expand((t) => t.bills).map((b) => b.messageId).toSet();
     final totals = c.data!.todayTotals.where((r) =>
         c.selectedCompanyId == null || r.companyId == c.selectedCompanyId);
     final billCount = totals.fold<int>(0, (sum, r) => sum + r.billCount);
@@ -949,33 +1129,52 @@ class _HistoryState extends State<HistoryPage> {
           icon: const Icon(Icons.upload_file),
           label: const Text('Upload bill'),
         ),
-        ...grouped.map((t)=>Card(child:ListTile(leading:const Icon(Icons.local_shipping_outlined),title:Text(t.name),subtitle:Text('${t.driverName??'Choose driver'}\n${t.entryMode=='manual'?'${t.siteCount} sites':t.bills.where((b)=>!b.duplicate).map((b)=>b.number).join(' · ')}'),isThreeLine:true,trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>TripPage(controller:c,tripId:t.id)))))),
-        if(bills.any((b)=>!linked.contains(b.id))) const Padding(padding:EdgeInsets.only(top:16,bottom:8),child:Text('Other bills',style:TextStyle(fontWeight:FontWeight.w700))),
-        ...bills.where((b)=>!linked.contains(b.id)).map(
-          (b) => Card(
+        ...grouped.map((t) => Card(
             child: ListTile(
-              title: Text(b.draft?.documentNumber ?? b.fileName),
-              subtitle: Text(
-                b.draft?.consigneeName ?? b.companyName ?? 'Check bill',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Text(
-                b.draft?.workflowStatus == 'cancelled'
-                    ? 'Cancelled'
-                    : b.draft?.stockStatus == 'applied' ? 'Recorded' : 'Check',
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => SimpleBillPage(controller: c, billId: b.id),
+                leading: const Icon(Icons.local_shipping_outlined),
+                title: Text(t.name),
+                subtitle: Text(
+                    '${t.driverName ?? 'Choose driver'}\n${t.entryMode == 'manual' ? '${t.siteCount} sites' : t.bills.where((b) => !b.duplicate).map((b) => b.number).join(' · ')}'),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            TripPage(controller: c, tripId: t.id)))))),
+        if (bills.any((b) => !linked.contains(b.id)))
+          const Padding(
+              padding: EdgeInsets.only(top: 16, bottom: 8),
+              child: Text('Other bills',
+                  style: TextStyle(fontWeight: FontWeight.w700))),
+        ...bills.where((b) => !linked.contains(b.id)).map(
+              (b) => Card(
+                child: ListTile(
+                  title: Text(b.draft?.documentNumber ?? b.fileName),
+                  subtitle: Text(
+                    b.draft?.consigneeName ?? b.companyName ?? 'Check bill',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Text(
+                    b.draft?.workflowStatus == 'cancelled'
+                        ? 'Cancelled'
+                        : b.draft?.stockStatus == 'applied'
+                            ? 'Recorded'
+                            : 'Check',
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          SimpleBillPage(controller: c, billId: b.id),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
         const Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Text(
             'Recent bills · Original PDFs are kept for 24 hours. Bill records stay saved.',
             style: TextStyle(fontSize: 12),

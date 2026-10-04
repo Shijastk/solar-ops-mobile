@@ -81,34 +81,72 @@ class AppController extends ChangeNotifier {
   bool _refreshAgain = false;
   final Map<String, DeliveryTrip> _tripOverrides = {};
   final Set<String> savingTrips = {};
-  final Map<String,Map<String,dynamic>> failedTripRequests = {};
+  final Map<String, Map<String, dynamic>> failedTripRequests = {};
   List<DeliveryTrip> get trips => [
-    ..._tripOverrides.values.where((t) => !(data?.trips.any((x) => x.id == t.id) ?? false)),
-    ...?data?.trips.map((t) => _tripOverrides[t.id] ?? t),
-  ];
+        ..._tripOverrides.values
+            .where((t) => !(data?.trips.any((x) => x.id == t.id) ?? false)),
+        ...?data?.trips.map((t) => _tripOverrides[t.id] ?? t),
+      ];
   void _cacheTrips() {
     final current = data;
-    if (current != null) unawaited(store.saveCache({...current.raw,'trips':trips.where((t)=>!failedTripRequests.containsKey(t.id)&&!savingTrips.contains(t.id)).map((t) => t.raw).toList()}).catchError((Object _) {}));
+    if (current != null) {
+      unawaited(store.saveCache({
+        ...current.raw,
+        'trips': trips
+            .where((t) =>
+                !failedTripRequests.containsKey(t.id) &&
+                !savingTrips.contains(t.id))
+            .map((t) => t.raw)
+            .toList()
+      }).catchError((Object _) {}));
+    }
   }
+
   void rememberDriver(Driver driver) {
-    final current=data;if(current==null)return;
-    data=BootstrapData.fromJson({...current.raw,'drivers':[...current.drivers.where((d)=>d.id!=driver.id).map((d)=>{'id':d.id,'name':d.name}),{'id':driver.id,'name':driver.name}]});changed();
+    final current = data;
+    if (current == null) return;
+    data = BootstrapData.fromJson({
+      ...current.raw,
+      'drivers': [
+        ...current.drivers
+            .where((d) => d.id != driver.id)
+            .map((d) => {'id': d.id, 'name': d.name}),
+        {'id': driver.id, 'name': driver.name}
+      ]
+    });
+    changed();
   }
-  void rememberCompany(Map<String,dynamic> company) {
-    final current=data;if(current==null)return;
-    final stock=Map<String,dynamic>.from(current.raw['stock'] as Map);
-    stock['companies']=[...current.stock.companies.where((c)=>c.id!=company['id']).map((c)=>{'id':c.id,'name':c.name,'gstin':c.gstin}),company];
-    data=BootstrapData.fromJson({...current.raw,'stock':stock});
-    unawaited(selectCompany(company['id'].toString()));changed();
+
+  void rememberCompany(Map<String, dynamic> company) {
+    final current = data;
+    if (current == null) return;
+    final stock = Map<String, dynamic>.from(current.raw['stock'] as Map);
+    stock['companies'] = [
+      ...current.stock.companies
+          .where((c) => c.id != company['id'])
+          .map((c) => {'id': c.id, 'name': c.name, 'gstin': c.gstin}),
+      company
+    ];
+    data = BootstrapData.fromJson({...current.raw, 'stock': stock});
+    unawaited(selectCompany(company['id'].toString()));
+    changed();
   }
+
   Future<String?> changeDriver(DeliveryTrip trip, Driver driver) async {
     if (busy) return 'Please wait';
     _tripOverrides[trip.id] = trip.withDriver(driver);
     savingTrips.add(trip.id);
     changed();
     final result = await runMutation((token) async {
-      final saved = await api.operation(token, {'action':'update_trip','tripId':trip.id,'driverId':driver.id,'close':false});
-      if (saved['id'] != null) _tripOverrides[trip.id] = DeliveryTrip.fromJson(saved);
+      final saved = await api.operation(token, {
+        'action': 'update_trip',
+        'tripId': trip.id,
+        'driverId': driver.id,
+        'close': false
+      });
+      if (saved['id'] != null) {
+        _tripOverrides[trip.id] = DeliveryTrip.fromJson(saved);
+      }
     });
     savingTrips.remove(trip.id);
     if (result != null) _tripOverrides[trip.id] = trip;
@@ -116,24 +154,33 @@ class AppController extends ChangeNotifier {
     changed();
     return result;
   }
-  Future<String?> saveTrip(Map<String,dynamic> payload, DeliveryTrip preview) async {
+
+  Future<String?> saveTrip(
+      Map<String, dynamic> payload, DeliveryTrip preview) async {
     if (busy) return 'Please wait';
     _tripOverrides[preview.id] = preview;
     failedTripRequests.remove(preview.id);
     savingTrips.add(preview.id);
     changed();
     final result = await runMutation((token) async {
-      final saved = await api.operation(token,payload);
-      if (saved['id'] == null) throw const ApiException('Saved trip could not be loaded. Refresh before retrying.');
+      final saved = await api.operation(token, payload);
+      if (saved['id'] == null) {
+        throw const ApiException(
+            'Saved trip could not be loaded. Refresh before retrying.');
+      }
       _tripOverrides.remove(preview.id);
       _tripOverrides[saved['id'].toString()] = DeliveryTrip.fromJson(saved);
     });
     savingTrips.remove(preview.id);
-    if (result != null && signedIn) { _tripOverrides[preview.id]=preview; failedTripRequests[preview.id]=payload; }
+    if (result != null && signedIn) {
+      _tripOverrides[preview.id] = preview;
+      failedTripRequests[preview.id] = payload;
+    }
     _cacheTrips();
     changed();
     return result;
   }
+
   bool get signedIn => _token != null;
   void changed() {
     if (!_disposed) notifyListeners();
@@ -186,7 +233,7 @@ class AppController extends ChangeNotifier {
     } finally {
       busy = false;
       changed();
-      if (signedIn) unawaited(refresh(silent:true));
+      if (signedIn) unawaited(refresh(silent: true));
     }
   }
 
@@ -255,7 +302,10 @@ class AppController extends ChangeNotifier {
   Future<void> refresh({bool silent = false}) async {
     final token = _token;
     if (token == null || locked) return;
-    if (refreshing || busy) { _refreshAgain = true; return; }
+    if (refreshing || busy) {
+      _refreshAgain = true;
+      return;
+    }
     final version = _writeVersion;
     refreshing = true;
     if (!silent) error = null;
@@ -263,8 +313,12 @@ class AppController extends ChangeNotifier {
     try {
       final fresh = await api.bootstrap(token);
       if (_token != token) return;
-      if (_writeVersion != version || busy) { _refreshAgain = true; return; }
-      _tripOverrides.removeWhere((id,_)=>!failedTripRequests.containsKey(id)&&!savingTrips.contains(id));
+      if (_writeVersion != version || busy) {
+        _refreshAgain = true;
+        return;
+      }
+      _tripOverrides.removeWhere((id, _) =>
+          !failedTripRequests.containsKey(id) && !savingTrips.contains(id));
       data = fresh;
       final detailId = activeBillId;
       if (detailId != null && !fresh.bills.any((b) => b.id == detailId)) {
@@ -294,7 +348,10 @@ class AppController extends ChangeNotifier {
     } finally {
       refreshing = false;
       changed();
-      if (_refreshAgain && !busy) { _refreshAgain = false; unawaited(refresh(silent:true)); }
+      if (_refreshAgain && !busy) {
+        _refreshAgain = false;
+        unawaited(refresh(silent: true));
+      }
     }
   }
 
@@ -344,7 +401,10 @@ class AppController extends ChangeNotifier {
     } finally {
       busy = false;
       changed();
-      if (acknowledged || _refreshAgain) { _refreshAgain = false; unawaited(refresh(silent:true)); }
+      if (acknowledged || _refreshAgain) {
+        _refreshAgain = false;
+        unawaited(refresh(silent: true));
+      }
     }
   }
 

@@ -108,26 +108,47 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     c.dispose();
   });
-  test('driver changes render before write and acknowledged writes do not wait for refresh',() async {
-    final api=MutationApi(),c=AppController(api:api,store:MemoryStore());await c.initialize();
-    final old=c.trips.first;const driver=Driver(id:'new-driver',name:'New driver');
-    final pending=c.changeDriver(old,driver);
-    expect(c.trips.first.driverName,'New driver');expect(c.savingTrips.contains(old.id),true);
-    api.write.complete({...old.raw,'driverId':driver.id,'driverName':driver.name});
-    expect(await pending,isNull);expect(c.busy,false);expect(c.trips.first.driverName,'New driver');
+  test(
+      'driver changes render before write and acknowledged writes do not wait for refresh',
+      () async {
+    final api = MutationApi(),
+        c = AppController(api: api, store: MemoryStore());
+    await c.initialize();
+    final old = c.trips.first;
+    const driver = Driver(id: 'new-driver', name: 'New driver');
+    final pending = c.changeDriver(old, driver);
+    expect(c.trips.first.driverName, 'New driver');
+    expect(c.savingTrips.contains(old.id), true);
+    api.write.complete(
+        {...old.raw, 'driverId': driver.id, 'driverName': driver.name});
+    expect(await pending, isNull);
+    expect(c.busy, false);
+    expect(c.trips.first.driverName, 'New driver');
     api.reads.first.complete(BootstrapData.fromJson(sampleData()));
     await Future<void>.delayed(Duration.zero);
-    expect(c.trips.first.driverName,'New driver');
-    for(final read in api.reads){if(!read.isCompleted)read.completeError(const ApiException('Offline'));}
-    await Future<void>.delayed(Duration.zero);c.dispose();
+    expect(c.trips.first.driverName, 'New driver');
+    for (final read in api.reads) {
+      if (!read.isCompleted) read.completeError(const ApiException('Offline'));
+    }
+    await Future<void>.delayed(Duration.zero);
+    c.dispose();
   });
-  test('rejected driver write restores old selection',() async {
-    final api=MutationApi(),c=AppController(api:api,store:MemoryStore());await c.initialize();
-    final old=c.trips.first;final pending=c.changeDriver(old,const Driver(id:'new-driver',name:'New driver'));
-    api.write.completeError(const ApiException('Driver unavailable',statusCode:409));
-    expect(await pending,'Driver unavailable');expect(c.trips.first.driverName,old.driverName);
-    for(final read in api.reads){if(!read.isCompleted)read.completeError(const ApiException('Offline'));}
-    await Future<void>.delayed(Duration.zero);c.dispose();
+  test('rejected driver write restores old selection', () async {
+    final api = MutationApi(),
+        c = AppController(api: api, store: MemoryStore());
+    await c.initialize();
+    final old = c.trips.first;
+    final pending =
+        c.changeDriver(old, const Driver(id: 'new-driver', name: 'New driver'));
+    api.write.completeError(
+        const ApiException('Driver unavailable', statusCode: 409));
+    expect(await pending, 'Driver unavailable');
+    expect(c.trips.first.driverName, old.driverName);
+    for (final read in api.reads) {
+      if (!read.isCompleted) read.completeError(const ApiException('Offline'));
+    }
+    await Future<void>.delayed(Duration.zero);
+    c.dispose();
   });
   testWidgets(
       'three tabs and company switching filter trips, stock and history on narrow phones',
@@ -157,16 +178,23 @@ void main() {
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
     expect(find.text('INV-2'), findsOneWidget);
-    expect(find.text('INV-1'), findsNothing);
+    expect(find.textContaining('INV-1'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
 
 class MutationApi extends SolarOpsApi {
-  final write=Completer<Map<String,dynamic>>();
-  final reads=<Completer<BootstrapData>>[];
+  final write = Completer<Map<String, dynamic>>();
+  final reads = <Completer<BootstrapData>>[];
   @override
-  Future<BootstrapData> bootstrap(String token){final next=Completer<BootstrapData>();reads.add(next);return next.future;}
+  Future<BootstrapData> bootstrap(String token) {
+    final next = Completer<BootstrapData>();
+    reads.add(next);
+    return next.future;
+  }
+
   @override
-  Future<Map<String,dynamic>> operation(String token,Map<String,dynamic> payload)=>write.future;
+  Future<Map<String, dynamic>> operation(
+          String token, Map<String, dynamic> payload) =>
+      write.future;
 }
