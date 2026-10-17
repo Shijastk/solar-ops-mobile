@@ -22,6 +22,13 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Diagnose formatter diff
+        run: |
+          cp test/simple_workflow_test.dart /tmp/simple_workflow_test.dart
+          dart format test/simple_workflow_test.dart
+          diff -u /tmp/simple_workflow_test.dart test/simple_workflow_test.dart || true
+          cp /tmp/simple_workflow_test.dart test/simple_workflow_test.dart
+
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed lib test
 
