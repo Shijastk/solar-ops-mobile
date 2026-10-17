@@ -202,8 +202,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     c.dispose();
   });
-  testWidgets(
-      'Trips home prominently lists bills needing checking',
+  testWidgets('Trips home prominently lists bills needing checking',
       (tester) async {
     final raw = sampleData();
     final draft = raw['bills'][1]['draft'] as Map<String, dynamic>;
