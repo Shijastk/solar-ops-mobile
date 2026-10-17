@@ -202,18 +202,17 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     c.dispose();
   });
-  testWidgets(
-      'Trips home prominently lists bills needing checking',
+  testWidgets('Trips home prominently lists bills needing checking',
       (tester) async {
     final raw = sampleData();
     final draft = raw['bills'][1]['draft'] as Map<String, dynamic>;
     draft['workflowStatus'] = 'review_required';
     draft['parseStatus'] = 'needs_review';
-    final controller = AppController()
-      ..data = BootstrapData.fromJson(raw);
+    final controller = AppController()..data = BootstrapData.fromJson(raw);
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: AppShell(controller: controller)));
+    await tester
+        .pumpWidget(MaterialApp(home: AppShell(controller: controller)));
     await tester.pumpAndSettle();
 
     expect(find.text('NEEDS CHECKING · 1 bill'), findsOneWidget);
