@@ -202,6 +202,25 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     c.dispose();
   });
+  testWidgets('Trips home prominently lists bills needing checking',
+      (tester) async {
+    final raw = sampleData();
+    final draft = raw['bills'][1]['draft'] as Map<String, dynamic>;
+    draft['workflowStatus'] = 'review_required';
+    draft['parseStatus'] = 'needs_review';
+    final controller = AppController()
+      ..data = BootstrapData.fromJson(raw);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(MaterialApp(home: AppShell(controller: controller)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NEEDS CHECKING · 1 bill'), findsOneWidget);
+    expect(find.text('Open a bill below to review the details and fix any missing information.'), findsOneWidget);
+    expect(find.text('INV-2'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'three work pages and top company switching filter trips, stock and grouped history',
       (tester) async {
