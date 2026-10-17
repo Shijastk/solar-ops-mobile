@@ -507,9 +507,97 @@ class _TripsState extends State<TripsPage> {
               ),
         )
         .toList();
+    final reviewBills = data.bills.where((bill) {
+      final companyMatches = c.selectedCompanyId == null ||
+          bill.companyId == c.selectedCompanyId ||
+          data.stock.companies.any((company) =>
+              company.id == c.selectedCompanyId &&
+              company.gstin == bill.companyGstin);
+      if (!companyMatches) return false;
+      final draft = bill.draft;
+      if (draft == null) return true;
+      if (draft.workflowStatus == 'recorded' ||
+          draft.workflowStatus == 'cancelled') {
+        return false;
+      }
+      return draft.workflowStatus == 'pending' ||
+          draft.workflowStatus == 'review_required' ||
+          const {
+            'ready_for_review',
+            'needs_review',
+            'needs_ocr',
+            'failed',
+          }.contains(draft.parseStatus) ||
+          bill.processingStatus == 'failed';
+    }).toList();
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
+        if (reviewBills.isNotEmpty)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'NEEDS CHECKING · ${reviewBills.length} bill${reviewBills.length == 1 ? '' : 's'}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Open a bill below to review the details and fix any missing information.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 6),
+                  ...reviewBills.map(
+                    (bill) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.error_outline),
+                      title: Text(
+                        bill.draft?.documentNumber ?? bill.fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        bill.draft?.parseError ??
+                            bill.draft?.parseStatus.replaceAll('_', ' ') ??
+                            'Not parsed yet',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => SimpleBillPage(
+                            controller: c,
+                            billId: bill.id,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         FilledButton.icon(
           onPressed: c.busy
               ? null
