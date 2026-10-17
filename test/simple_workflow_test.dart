@@ -213,18 +213,15 @@ void main() {
       ..data = BootstrapData.fromJson(raw);
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(home: AppShell(controller: controller)),
-    );
+    await tester.pumpWidget(MaterialApp(home: AppShell(controller: controller)));
     await tester.pumpAndSettle();
 
     expect(find.text('NEEDS CHECKING · 1 bill'), findsOneWidget);
     expect(
-      find.text(
-        'Open a bill below to review the details and fix any missing information.',
-      ),
-      findsOneWidget,
-    );
+        find.text(
+          'Open a bill below to review the details and fix any missing information.',
+        ),
+        findsOneWidget);
     expect(find.text('INV-2'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
