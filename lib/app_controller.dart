@@ -83,12 +83,34 @@ class AppController extends ChangeNotifier {
   final Map<String, DeliveryTrip> _tripOverrides = {};
   final Set<String> savingTrips = {};
   final Map<String, String> _pendingStockRequestIds = {};
+  bool _pendingStockRequestIdsLoaded = false;
 
-  String stockRequestIdFor(String identity) =>
-      _pendingStockRequestIds.putIfAbsent(identity, requestUuid);
+  Future<String> stockRequestIdFor(String identity) async {
+    if (!_pendingStockRequestIdsLoaded) {
+      _pendingStockRequestIds.addAll(await store.readPendingStockRequests());
+      _pendingStockRequestIdsLoaded = true;
+    }
 
-  void completeStockRequest(String identity) {
-    _pendingStockRequestIds.remove(identity);
+    final existing = _pendingStockRequestIds[identity];
+    if (existing != null) return existing;
+
+    final requestId = requestUuid();
+    final next = {..._pendingStockRequestIds, identity: requestId};
+    await store.savePendingStockRequests(next);
+    _pendingStockRequestIds
+      ..clear()
+      ..addAll(next);
+    return requestId;
+  }
+
+  Future<void> completeStockRequest(String identity) async {
+    if (!_pendingStockRequestIds.containsKey(identity)) return;
+    final next = Map<String, String>.from(_pendingStockRequestIds)
+      ..remove(identity);
+    await store.savePendingStockRequests(next);
+    _pendingStockRequestIds
+      ..clear()
+      ..addAll(next);
   }
   // Uploads are local to the draft page, not the app-wide mutation lock.
   Future<Map<String, dynamic>> uploadDraftFile(
