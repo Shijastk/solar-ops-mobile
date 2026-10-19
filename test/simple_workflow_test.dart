@@ -14,6 +14,7 @@ class MemoryStore extends SessionStore {
       expiresAt: DateTime.now().add(const Duration(days: 30)));
   Map<String, dynamic>? cache = sampleData();
   bool lockValue = false;
+  final Map<String, String> pendingStockRequests = {};
   String? company;
   @override
   Future<StoredSession?> read() async => session;
@@ -36,6 +37,17 @@ class MemoryStore extends SessionStore {
   @override
   Future<void> saveLock(bool enabled) async {
     lockValue = enabled;
+  }
+
+  @override
+  Future<Map<String, String>> readPendingStockRequests() async =>
+      Map<String, String>.from(pendingStockRequests);
+
+  @override
+  Future<void> savePendingStockRequests(Map<String, String> requests) async {
+    pendingStockRequests
+      ..clear()
+      ..addAll(requests);
   }
 
   @override
@@ -63,16 +75,19 @@ class FakeUnlock extends DeviceUnlock {
 }
 
 void main() {
-  test('stock receipt retries reuse the same request id until confirmed', () {
-    final controller = AppController(store: MemoryStore());
+  test('stock receipt retries reuse the same request id until confirmed', () async {
+    final store = MemoryStore();
+    final controller = AppController(store: store);
     addTearDown(controller.dispose);
     const identity = '{"companyId":"company-a","productId":"product-a","quantity":3}';
 
-    final first = controller.stockRequestIdFor(identity);
-    expect(controller.stockRequestIdFor(identity), first);
+    final first = await controller.stockRequestIdFor(identity);
+    expect(await controller.stockRequestIdFor(identity), first);
+    expect(store.pendingStockRequests[identity], first);
 
-    controller.completeStockRequest(identity);
-    expect(controller.stockRequestIdFor(identity), isNot(first));
+    await controller.completeStockRequest(identity);
+    expect(store.pendingStockRequests.containsKey(identity), false);
+    expect(await controller.stockRequestIdFor(identity), isNot(first));
   });
   test(
       'empty and removed trips are hidden; products and active bills remain searchable',
