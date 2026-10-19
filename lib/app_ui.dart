@@ -1030,7 +1030,8 @@ class _StockState extends State<SimpleStockPage> {
                       'quantity': input.quantity,
                       'hsnSac': input.product?.hsnSac,
                     });
-                    final requestId = await c.stockRequestIdFor(stockRequestIdentity);
+                    final requestId =
+                        await c.stockRequestIdFor(stockRequestIdentity);
                     String? code;
                     Future<String?> submit(bool allow) =>
                         c.runMutation((token) async {
