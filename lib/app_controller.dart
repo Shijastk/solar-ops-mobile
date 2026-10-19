@@ -114,6 +114,7 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(next);
   }
+
   // Uploads are local to the draft page, not the app-wide mutation lock.
   Future<Map<String, dynamic>> uploadDraftFile(
       String name, Uint8List bytes, String requestId) async {
