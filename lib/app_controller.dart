@@ -87,7 +87,9 @@ class AppController extends ChangeNotifier {
 
   Future<String> stockRequestIdFor(String identity) async {
     if (!_pendingStockRequestIdsLoaded) {
-      _pendingStockRequestIds.addAll(await store.readPendingStockRequests());
+      _pendingStockRequestIds.addAll(
+        await store.readPendingStockRequests(),
+      );
       _pendingStockRequestIdsLoaded = true;
     }
 
