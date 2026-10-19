@@ -75,19 +75,28 @@ class FakeUnlock extends DeviceUnlock {
 }
 
 void main() {
-  test('stock receipt retries reuse the same request id until confirmed', () async {
+  test(
+      'stock receipt retries reuse the same request id until confirmed',
+      () async {
     final store = MemoryStore();
     final controller = AppController(store: store);
     addTearDown(controller.dispose);
-    const identity = '{"companyId":"company-a","productId":"product-a","quantity":3}';
+    const identity =
+        '{"companyId":"company-a","productId":"product-a","quantity":3}';
 
     final first = await controller.stockRequestIdFor(identity);
-    expect(await controller.stockRequestIdFor(identity), first);
+    expect(
+      await controller.stockRequestIdFor(identity),
+      first,
+    );
     expect(store.pendingStockRequests[identity], first);
 
     await controller.completeStockRequest(identity);
     expect(store.pendingStockRequests.containsKey(identity), false);
-    expect(await controller.stockRequestIdFor(identity), isNot(first));
+    expect(
+      await controller.stockRequestIdFor(identity),
+      isNot(first),
+    );
   });
   test(
       'empty and removed trips are hidden; products and active bills remain searchable',
