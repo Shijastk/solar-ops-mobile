@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'request_id.dart';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
@@ -1021,7 +1022,15 @@ class _StockState extends State<SimpleStockPage> {
                         showDragHandle: true,
                         builder: (_) => StockEntrySheet(controller: c));
                     if (input == null || !context.mounted) return;
-                    final requestId = requestUuid();
+                    final stockRequestIdentity = jsonEncode({
+                      'companyId': input.companyId,
+                      'productId': input.product?.productId,
+                      'productName': input.name.trim().toLowerCase(),
+                      'unit': input.unit.trim().toUpperCase(),
+                      'quantity': input.quantity,
+                      'hsnSac': input.product?.hsnSac,
+                    });
+                    final requestId = c.stockRequestIdFor(stockRequestIdentity);
                     String? code;
                     Future<String?> submit(bool allow) =>
                         c.runMutation((token) async {
@@ -1061,6 +1070,9 @@ class _StockState extends State<SimpleStockPage> {
                                         child: const Text('Different product'))
                                   ]));
                       if (confirm == true) error = await submit(true);
+                    }
+                    if (error == null) {
+                      c.completeStockRequest(stockRequestIdentity);
                     }
                     if (context.mounted) {
                       toast(context, error ?? 'Stock saved');
