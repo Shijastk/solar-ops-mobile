@@ -24,28 +24,36 @@ jobs:
 
       - name: Diagnostic formatter diff
         run: |
-          dart format --output=json lib/app_controller.dart lib/app_ui.dart test/simple_workflow_test.dart > /tmp/format.json
           python3 - <<'PY'
           import difflib
-          import json
+          import pathlib
+          import re
+          import subprocess
 
-          raw = open("/tmp/format.json", encoding="utf-8").read()
-          try:
-              parsed = json.loads(raw)
-              items = parsed.get("sources", [parsed]) if isinstance(parsed, dict) else parsed
-          except json.JSONDecodeError:
-              items = [json.loads(line) for line in raw.splitlines() if line.strip()]
-          for item in items:
-              source = item.get("source", "")
-              formatted = item.get("formatted", item.get("output", ""))
-              print("FILE", item.get("path", "unknown"), "KEYS", sorted(item.keys()))
-              if source != formatted:
-                  print("".join(difflib.unified_diff(
-                      source.splitlines(True),
-                      formatted.splitlines(True),
-                      fromfile="source",
-                      tofile="formatted",
-                  )))
+          for path in [
+              "lib/app_controller.dart",
+              "lib/app_ui.dart",
+              "test/simple_workflow_test.dart",
+          ]:
+              original = pathlib.Path(path).read_text()
+              result = subprocess.run(
+                  ["dart", "format", "--output=show", path],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              formatted = re.sub(
+                  r"\\n?Formatted \\d+ files? \\(\\d+ changed\\).*\\n?$",
+                  "",
+                  result.stdout,
+              )
+              print("FILE", path)
+              print("".join(difflib.unified_diff(
+                  original.splitlines(True),
+                  formatted.splitlines(True),
+                  fromfile="source",
+                  tofile="formatted",
+              )))
           PY
 
       - name: Check formatting
