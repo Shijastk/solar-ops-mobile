@@ -50,6 +50,26 @@ class SessionStore {
 
   Future<void> saveCache(Map<String, dynamic> data) =>
       _storage.write(key: 'solar_ops_cache', value: jsonEncode(data));
+
+  Future<Map<String, String>> readPendingStockRequests() async {
+    final text = await _storage.read(key: 'solar_ops_pending_stock_requests');
+    if (text == null) return {};
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is! Map) return {};
+      return decoded.map<String, String>(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      );
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> savePendingStockRequests(Map<String, String> requests) =>
+      _storage.write(
+        key: 'solar_ops_pending_stock_requests',
+        value: jsonEncode(requests),
+      );
   Future<bool> readLock() async =>
       await _storage.read(key: 'solar_ops_lock') == 'true';
   Future<void> saveLock(bool enabled) =>
