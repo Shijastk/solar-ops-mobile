@@ -76,11 +76,13 @@ class FakeUnlock extends DeviceUnlock {
 
 void main() {
   test(
-      'stock receipt retries reuse the same request id until confirmed',
+      'stock receipt retries reuse the same request id until confirmed, including after restart',
       () async {
     final store = MemoryStore();
     final controller = AppController(store: store);
+    final restartedController = AppController(store: store);
     addTearDown(controller.dispose);
+    addTearDown(restartedController.dispose);
     const identity =
         '{"companyId":"company-a","productId":"product-a","quantity":3}';
 
@@ -90,11 +92,15 @@ void main() {
       first,
     );
     expect(store.pendingStockRequests[identity], first);
+    expect(
+      await restartedController.stockRequestIdFor(identity),
+      first,
+    );
 
-    await controller.completeStockRequest(identity);
+    await restartedController.completeStockRequest(identity);
     expect(store.pendingStockRequests.containsKey(identity), false);
     expect(
-      await controller.stockRequestIdFor(identity),
+      await restartedController.stockRequestIdFor(identity),
       isNot(first),
     );
   });
