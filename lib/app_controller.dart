@@ -82,6 +82,14 @@ class AppController extends ChangeNotifier {
   bool _refreshAgain = false;
   final Map<String, DeliveryTrip> _tripOverrides = {};
   final Set<String> savingTrips = {};
+  final Map<String, String> _pendingStockRequestIds = {};
+
+  String stockRequestIdFor(String identity) =>
+      _pendingStockRequestIds.putIfAbsent(identity, requestUuid);
+
+  void completeStockRequest(String identity) {
+    _pendingStockRequestIds.remove(identity);
+  }
   // Uploads are local to the draft page, not the app-wide mutation lock.
   Future<Map<String, dynamic>> uploadDraftFile(
       String name, Uint8List bytes, String requestId) async {
