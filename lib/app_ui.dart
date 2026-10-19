@@ -1025,10 +1025,13 @@ class _StockState extends State<SimpleStockPage> {
                     final stockRequestIdentity = jsonEncode({
                       'companyId': input.companyId,
                       'productId': input.product?.productId,
-                      'productName': input.name.trim().toLowerCase(),
-                      'unit': input.unit.trim().toUpperCase(),
+                      'newProductName': input.product == null
+                          ? input.name.trim().toLowerCase()
+                          : null,
+                      'unit': input.product == null
+                          ? input.unit.trim().toUpperCase()
+                          : null,
                       'quantity': input.quantity,
-                      'hsnSac': input.product?.hsnSac,
                     });
                     final requestId =
                         await c.stockRequestIdFor(stockRequestIdentity);
